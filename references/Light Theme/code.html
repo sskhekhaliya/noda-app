@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Noda - Library</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#a3f69c",
+                    "on-primary": "#ffffff",
+                    "secondary-fixed": "#c7e7ff",
+                    "on-background": "#171c1f",
+                    "on-surface": "#171c1f",
+                    "tertiary": "#005312",
+                    "on-tertiary-fixed-variant": "#005312",
+                    "surface-container": "#eaeef2",
+                    "surface-container-high": "#e4e9ed",
+                    "on-tertiary-fixed": "#002204",
+                    "inverse-on-surface": "#edf1f5",
+                    "outline-variant": "#bec8ca",
+                    "surface-container-low": "#f0f4f8",
+                    "on-primary-container": "#97e6f0",
+                    "surface-bright": "#f6fafe",
+                    "primary-container": "#006972",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "background": "#f6fafe",
+                    "surface-tint": "#006972",
+                    "surface": "#f6fafe",
+                    "surface-dim": "#d6dade",
+                    "primary-fixed": "#a1eff9",
+                    "primary": "#004f56",
+                    "on-secondary-fixed-variant": "#194b66",
+                    "on-primary-fixed-variant": "#004f56",
+                    "on-tertiary-container": "#9aec93",
+                    "on-tertiary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "primary-fixed-dim": "#85d3dd",
+                    "tertiary-fixed-dim": "#88d982",
+                    "inverse-primary": "#85d3dd",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#afddfe",
+                    "secondary": "#35637f",
+                    "outline": "#6f797a",
+                    "on-primary-fixed": "#001f23",
+                    "surface-container-highest": "#dfe3e7",
+                    "error-container": "#ffdad6",
+                    "on-secondary-container": "#34627e",
+                    "error": "#ba1a1a",
+                    "on-surface-variant": "#3f494a",
+                    "inverse-surface": "#2c3134",
+                    "secondary-fixed-dim": "#9fccec",
+                    "on-secondary-fixed": "#001e2e",
+                    "tertiary-container": "#1c6d24",
+                    "surface-variant": "#dfe3e7"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Manrope"],
+                    "label": ["Manrope"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .gradient-primary {
+            background: linear-gradient(135deg, #004f56 0%, #006972 100%);
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(24px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-50 bg-[#f6fafe] dark:bg-[#171c1f]">
+<div class="flex justify-between items-center px-6 py-4 w-full">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-[#004f56] dark:text-[#a1eff9] hover:bg-[#ffffff]/80 transition-all p-2 rounded-full active:scale-95 duration-200" data-icon="menu">menu</button>
+<div class="flex items-center gap-2">
+<img alt="Logo" class="w-8 h-8 rounded-lg" data-alt="Abstract geometric logo for Noda featuring teal and ocean blue interlocking shapes on a clean white background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAaXEL9FknYfJzVb2XtEk3_VcEDaREB2Rl-7yDpyTG02LWAuT0fFVj7R1O5h1b51fh38xPoFtgKo901H_B38TqaXRpeaMw7D_4QsDZ99Mt30um0yPCFVWnwDPjyYCrqYjVEiWNPiM9_Mx_X1fqfOzxJXGK-AyLDbfrpPq9wGB9ThQTZKXtmo93FOWRbBiUBUQNwR5JtLWcRwFLoMHD6mIIpcGN2M4VwzCr6FyvMshjLKqSyFEa1McMDV0SxTuRFKlqIOoWXsOaRc44"/>
+<span class="font-['Manrope'] font-semibold tracking-tight text-[2rem] text-[#004f56] dark:text-[#a1eff9]">Noda</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="material-symbols-outlined text-[#5a6b73] dark:text-[#bec8ca] hover:bg-[#ffffff]/80 transition-all p-2 rounded-full active:scale-95 duration-200" data-icon="account_circle">account_circle</button>
+</div>
+</div>
+</header>
+<main class="px-6 pt-8 max-w-5xl mx-auto">
+<!-- Hero / Header Section -->
+<section class="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div class="space-y-2">
+<span class="text-primary font-semibold tracking-wider uppercase text-[0.75rem]">Your Collection</span>
+<h1 class="text-5xl font-bold tracking-tight text-on-surface -ml-1">Library</h1>
+<p class="text-on-surface-variant max-w-md">Organize your thoughts and subjects into focused study nodes.</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="gradient-primary text-white flex items-center gap-2 px-6 py-3 rounded-full font-semibold shadow-lg hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                    Play All
+                </button>
+<button class="bg-secondary-container text-on-secondary-container flex items-center gap-2 px-6 py-3 rounded-full font-semibold hover:opacity-80 active:scale-95 transition-all">
+<span class="material-symbols-outlined">shuffle</span>
+                    Shuffle
+                </button>
+</div>
+</section>
+<!-- Search & Filter -->
+<div class="mb-8">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full bg-surface-container-high border-none rounded-xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all" placeholder="Search your subjects..." type="text"/>
+</div>
+</div>
+<!-- Subjects Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Computer Science Card -->
+<div class="group relative bg-surface-container-lowest p-6 rounded-[1.5rem] hover:shadow-xl transition-all duration-300 border-none flex flex-col justify-between min-h-[220px]">
+<div class="flex justify-between items-start">
+<div class="w-12 h-12 rounded-2xl bg-primary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="terminal">terminal</span>
+</div>
+<button class="text-outline-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div>
+<h3 class="text-xl font-bold text-on-surface mb-1">Computer Science</h3>
+<div class="flex items-center gap-2 text-on-surface-variant text-sm">
+<span class="material-symbols-outlined text-[16px]">account_tree</span>
+<span>128 nodes</span>
+<span class="mx-1">•</span>
+<span>Updated 2h ago</span>
+</div>
+</div>
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1.5rem] pointer-events-none"></div>
+</div>
+<!-- Organic Chemistry Card -->
+<div class="group relative bg-surface-container-lowest p-6 rounded-[1.5rem] hover:shadow-xl transition-all duration-300 border-none flex flex-col justify-between min-h-[220px]">
+<div class="flex justify-between items-start">
+<div class="w-12 h-12 rounded-2xl bg-secondary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary" data-icon="science">science</span>
+</div>
+<button class="text-outline-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div>
+<h3 class="text-xl font-bold text-on-surface mb-1">Organic Chemistry</h3>
+<div class="flex items-center gap-2 text-on-surface-variant text-sm">
+<span class="material-symbols-outlined text-[16px]">account_tree</span>
+<span>84 nodes</span>
+<span class="mx-1">•</span>
+<span>Updated yesterday</span>
+</div>
+</div>
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1.5rem] pointer-events-none"></div>
+</div>
+<!-- Modern History Card -->
+<div class="group relative bg-surface-container-lowest p-6 rounded-[1.5rem] hover:shadow-xl transition-all duration-300 border-none flex flex-col justify-between min-h-[220px]">
+<div class="flex justify-between items-start">
+<div class="w-12 h-12 rounded-2xl bg-tertiary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary" data-icon="history_edu">history_edu</span>
+</div>
+<button class="text-outline-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div>
+<h3 class="text-xl font-bold text-on-surface mb-1">Modern History</h3>
+<div class="flex items-center gap-2 text-on-surface-variant text-sm">
+<span class="material-symbols-outlined text-[16px]">account_tree</span>
+<span>215 nodes</span>
+<span class="mx-1">•</span>
+<span>Updated 3d ago</span>
+</div>
+</div>
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1.5rem] pointer-events-none"></div>
+</div>
+<!-- Economics Card -->
+<div class="group relative bg-surface-container-lowest p-6 rounded-[1.5rem] hover:shadow-xl transition-all duration-300 border-none flex flex-col justify-between min-h-[220px]">
+<div class="flex justify-between items-start">
+<div class="w-12 h-12 rounded-2xl bg-primary-fixed-dim flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-fixed-variant" data-icon="trending_up">trending_up</span>
+</div>
+<button class="text-outline-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div>
+<h3 class="text-xl font-bold text-on-surface mb-1">Economics</h3>
+<div class="flex items-center gap-2 text-on-surface-variant text-sm">
+<span class="material-symbols-outlined text-[16px]">account_tree</span>
+<span>56 nodes</span>
+<span class="mx-1">•</span>
+<span>Updated 1w ago</span>
+</div>
+</div>
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1.5rem] pointer-events-none"></div>
+</div>
+<!-- Add New Card -->
+<div class="group relative border-2 border-dashed border-outline-variant bg-transparent p-6 rounded-[1.5rem] hover:bg-surface-container transition-all duration-300 flex flex-col items-center justify-center gap-4 min-h-[220px] cursor-pointer">
+<div class="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-primary scale-125">add</span>
+</div>
+<span class="font-semibold text-on-surface-variant">Create New Subject</span>
+</div>
+</div>
+<!-- Featured Section Asymmetric -->
+<section class="mt-16 mb-12">
+<h2 class="text-3xl font-bold mb-8">Recently Studied</h2>
+<div class="flex flex-col lg:flex-row gap-8">
+<div class="lg:w-2/3 bg-surface-container rounded-[2rem] p-8 overflow-hidden relative">
+<div class="relative z-10">
+<h3 class="text-2xl font-bold text-primary mb-2">Neural Networks</h3>
+<p class="text-on-surface-variant max-w-sm mb-6">Continue your deep dive into backpropagation and gradient descent.</p>
+<button class="bg-primary text-white px-8 py-3 rounded-full font-semibold active:scale-95 transition-all">Resume Session</button>
+</div>
+<div class="absolute -right-12 -bottom-12 w-64 h-64 bg-primary-fixed opacity-20 rounded-full blur-3xl"></div>
+</div>
+<div class="lg:w-1/3 bg-secondary-container/30 rounded-[2rem] p-8 flex flex-col justify-center border-none">
+<div class="flex items-center gap-4 mb-4">
+<div class="w-10 h-10 rounded-full bg-secondary text-white flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">bolt</span>
+</div>
+<span class="font-bold">Daily Goal</span>
+</div>
+<p class="text-3xl font-bold text-secondary mb-1">85%</p>
+<div class="w-full bg-secondary-container h-2 rounded-full overflow-hidden">
+<div class="w-[85%] h-full bg-secondary"></div>
+</div>
+<p class="mt-4 text-sm text-on-secondary-container">12 nodes to go until your target.</p>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-[#ffffff]/80 dark:bg-[#171c1f]/80 rounded-t-[1.5rem] backdrop-blur-xl shadow-[0px_-8px_24px_rgba(23,28,31,0.04)]">
+<a class="flex flex-col items-center justify-center bg-[#006972]/10 text-[#004f56] dark:bg-[#a1eff9]/20 dark:text-[#a1eff9] rounded-full px-5 py-1 active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-['Manrope'] font-medium text-[0.75rem]">Library</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#5a6b73] dark:text-[#bec8ca] hover:opacity-80 transition-opacity active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+<span class="font-['Manrope'] font-medium text-[0.75rem]">Search</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#5a6b73] dark:text-[#bec8ca] hover:opacity-80 transition-opacity active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="timer">timer</span>
+<span class="font-['Manrope'] font-medium text-[0.75rem]">Focus</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#5a6b73] dark:text-[#bec8ca] hover:opacity-80 transition-opacity active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-['Manrope'] font-medium text-[0.75rem]">Settings</span>
+</a>
+</nav>
+<!-- Contextual FAB - Suppression Logic: Active on Library/Home -->
+<button class="fixed bottom-24 right-6 w-14 h-14 gradient-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40">
+<span class="material-symbols-outlined text-3xl">add</span>
+</button>
+</body></html>

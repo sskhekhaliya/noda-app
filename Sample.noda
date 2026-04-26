@@ -1,0 +1,55 @@
+{
+  "subject": {
+    "title": "Quantum Mechanics",
+    "description": "A sample subject for testing imports.",
+    "icon": "⚛️",
+    "colorValue": 4280391411,
+    "note": "# Quantum Mechanics\n\nThe study of matter and energy at the most fundamental level.",
+    "cards": [
+      {
+        "front": "What is quantum mechanics?",
+        "back": "The branch of physics dealing with the behavior of matter and light on the atomic and subatomic scale."
+      }
+    ],
+    "nodes": [
+      {
+        "name": "Wave Function",
+        "note": "Basics of the wave function.",
+        "cards": [
+          {
+            "front": "What does the Schrödinger equation describe?",
+            "back": "It describes how the quantum state of a quantum system changes with time."
+          },
+          {
+            "front": "What is a wave function?",
+            "back": "A mathematical description of the quantum state of a system, usually denoted by Ψ (psi)."
+          }
+        ],
+        "nodes": [
+          {
+            "name": "Probability Amplitude",
+            "note": "",
+            "cards": [
+              {
+                "front": "What is the Born rule?",
+                "back": "The probability of finding a particle at a given position is proportional to |Ψ|²."
+              }
+            ],
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "name": "Quantum Entanglement",
+        "note": "When particles become correlated.",
+        "cards": [
+          {
+            "front": "What is quantum entanglement?",
+            "back": "A phenomenon where two particles become interconnected and the state of one instantly influences the other, regardless of distance."
+          }
+        ],
+        "nodes": []
+      }
+    ]
+  }
+}

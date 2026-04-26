@@ -1,0 +1,2 @@
+﻿Building Windows application...                                   134.8s
+ΓêÜ Built build\windows\x64\runner\Release\noda.exe
