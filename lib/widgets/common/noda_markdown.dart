@@ -6,6 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/database_provider.dart';
 import '../../core/theme/app_typography.dart';
 import '../../screens/hierarchy_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_highlighting/flutter_highlighting.dart';
+import 'package:flutter_highlighting/themes/dracula.dart';
+import 'package:flutter_highlighting/themes/github.dart';
 
 class NodaMarkdown extends ConsumerWidget {
   final String data;
@@ -172,6 +176,7 @@ class NodaMarkdown extends ConsumerWidget {
             fontWeight: FontWeight.w900,
           ),
         ),
+        'code': CodeElementBuilder(colorScheme: colorScheme),
       },
       styleSheet: styleSheet ?? MarkdownStyleSheet(
         textAlign: textAlign,
@@ -203,15 +208,12 @@ class NodaMarkdown extends ConsumerWidget {
         code: TextStyle(
           fontFamily: 'monospace',
           fontSize: 14,
-          backgroundColor: colorScheme.primary.withOpacity(0.08),
           color: colorScheme.primary,
           fontWeight: FontWeight.w600,
         ),
-        codeblockPadding: const EdgeInsets.all(16),
-        codeblockDecoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colorScheme.outline.withOpacity(0.05)),
+        codeblockPadding: const EdgeInsets.all(0),
+        codeblockDecoration: const BoxDecoration(
+          color: Colors.transparent,
         ),
         blockquoteDecoration: BoxDecoration(
           border: Border(left: BorderSide(color: colorScheme.primary.withOpacity(0.4), width: 8)),
@@ -564,5 +566,76 @@ class HighlightBuilder extends MarkdownElementBuilder {
   @override
   TextStyle? getTextStyle(md.Element element, TextStyle preferredStyle) {
     return preferredStyle.merge(highlightStyle);
+  }
+}
+class CodeElementBuilder extends MarkdownElementBuilder {
+  final ColorScheme colorScheme;
+  CodeElementBuilder({required this.colorScheme});
+
+  @override
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    final String content = element.textContent;
+    final bool isBlock = content.contains('\n') || element.attributes.containsKey('class');
+    
+    if (!isBlock) {
+      // Inline code
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          content,
+          style: GoogleFonts.firaCode(
+            fontSize: 13,
+            color: colorScheme.primary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+    }
+
+    // Extract language
+    String language = 'plaintext';
+    if (element.attributes.containsKey('class')) {
+      final String? className = element.attributes['class'];
+      if (className != null && className.startsWith('language-')) {
+        language = className.replaceFirst('language-', '');
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outline.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: HighlightView(
+          content.trim(),
+          languageId: language,
+          theme: colorScheme.brightness == Brightness.dark 
+              ? draculaTheme 
+              : Map.from(githubTheme)..['root'] = githubTheme['root']!.copyWith(
+                  backgroundColor: const Color(0xFFF1F5F9), // Light modern grey
+                ),
+          padding: const EdgeInsets.all(20),
+          textStyle: GoogleFonts.firaCode(
+            fontSize: 14,
+            height: 1.5,
+          ),
+        ),
+      ),
+    );
   }
 }
