@@ -126,13 +126,16 @@ class AppDatabase extends _$AppDatabase {
   Stream<List<Card>> watchCardsOf(String parentId) {
     return (select(cards)
           ..where((c) => c.parentId.equals(parentId))
-          ..orderBy([(c) => OrderingTerm.desc(c.createdAt)]))
+          ..orderBy([(c) => OrderingTerm.asc(c.createdAt)]))
         .watch();
   }
 
   /// Get all cards for a specific parent.
   Future<List<Card>> getCardsOf(String parentId) {
-    return (select(cards)..where((c) => c.parentId.equals(parentId))).get();
+    return (select(cards)
+          ..where((c) => c.parentId.equals(parentId))
+          ..orderBy([(c) => OrderingTerm.asc(c.createdAt)]))
+        .get();
   }
 
   /// Alias for getCardsOf used in import/export logic.
@@ -376,6 +379,23 @@ class AppDatabase extends _$AppDatabase {
     return result.read<int>('cnt');
   }
 
+  /// Watch recursive note count.
+  Stream<int> watchRecursiveNotesCount(String startNodeId) {
+    return customSelect(
+      '''
+      WITH RECURSIVE descendants AS (
+        SELECT id, type FROM nodes WHERE id = ?
+        UNION ALL
+        SELECT n.id, n.type FROM nodes n
+        INNER JOIN descendants d ON n.parent_id = d.id
+      )
+      SELECT COUNT(*) as cnt FROM descendants WHERE type = 'NOTE'
+      ''',
+      variables: [Variable.withString(startNodeId)],
+      readsFrom: {nodes},
+    ).watchSingle().map((row) => row.read<int>('cnt'));
+  }
+
   /// Count all descendant cards under a node hierarchy.
   Future<int> countRecursiveCards(String startNodeId) async {
     final result = await customSelect(
@@ -392,6 +412,23 @@ class AppDatabase extends _$AppDatabase {
       readsFrom: {nodes, cards},
     ).getSingle();
     return result.read<int>('cnt');
+  }
+
+  /// Watch recursive card count.
+  Stream<int> watchRecursiveCardsCount(String startNodeId) {
+    return customSelect(
+      '''
+      WITH RECURSIVE descendants AS (
+        SELECT id FROM nodes WHERE id = ?
+        UNION ALL
+        SELECT n.id FROM nodes n
+        INNER JOIN descendants d ON n.parent_id = d.id
+      )
+      SELECT COUNT(*) as cnt FROM cards WHERE parent_id IN (SELECT id FROM descendants)
+      ''',
+      variables: [Variable.withString(startNodeId)],
+      readsFrom: {nodes, cards},
+    ).watchSingle().map((row) => row.read<int>('cnt'));
   }
 
   /// Count direct children of a node.

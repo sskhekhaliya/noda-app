@@ -178,16 +178,16 @@ class NodaMarkdown extends ConsumerWidget {
         h3Align: textAlign,
         p: AppTypography.bodyLarge(color: colorScheme.onSurface.withValues(alpha: 0.9)),
         h1: AppTypography.headingLarge(color: colorScheme.primary).copyWith(
-          fontSize: 34,
+          fontSize: 26,
           fontWeight: FontWeight.w900,
           letterSpacing: -0.5,
         ),
         h2: AppTypography.headingMedium(color: colorScheme.onSurface).copyWith(
-          fontSize: 28,
+          fontSize: 22,
           fontWeight: FontWeight.w800,
         ),
         h3: AppTypography.headingSmall(color: colorScheme.onSurface).copyWith(
-          fontSize: 22,
+          fontSize: 18,
           fontWeight: FontWeight.w700,
         ),
         h1Padding: const EdgeInsets.only(top: 12, bottom: 8),
@@ -217,6 +217,14 @@ class NodaMarkdown extends ConsumerWidget {
           borderRadius: const BorderRadius.only(topRight: Radius.circular(8), bottomRight: Radius.circular(8)),
         ),
         blockquotePadding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        horizontalRuleDecoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: colorScheme.outline.withValues(alpha: 0.2),
+              width: 0.5,
+            ),
+          ),
+        ),
       ),
     );
   }

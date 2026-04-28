@@ -242,11 +242,33 @@ class _KeepNoteScreenState extends ConsumerState<KeepNoteScreen> {
   }
 
   Widget _buildPreview() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final title = _titleController.text.trim();
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(28, 24, 28, 100),
-      child: NodaMarkdown(
-        data: _controller.text.isEmpty ? '*Empty note*' : _controller.text,
-        selectable: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title.isNotEmpty) ...[
+            Text(
+              title.toUpperCase(),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: colorScheme.primary,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Divider(color: colorScheme.outline.withValues(alpha: 0.1)),
+            const SizedBox(height: 16),
+          ],
+          NodaMarkdown(
+            data: _controller.text.isEmpty ? '*Empty note*' : _controller.text,
+            selectable: true,
+          ),
+        ],
       ),
     );
   }

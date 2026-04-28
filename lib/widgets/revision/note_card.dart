@@ -99,11 +99,13 @@ class _NoteCardState extends ConsumerState<NoteCard> {
                       children: [
                         Expanded(
                           child: Text(
-                            widget.note.title,
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  color: colorScheme.onSurface,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                            widget.note.title.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: colorScheme.primary,
+                              letterSpacing: 1.0,
+                            ),
                           ),
                         ),
                         _TtsActionButton(text: (widget.note.content ?? "")),

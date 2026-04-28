@@ -325,10 +325,12 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _titleController.text.isEmpty ? 'Untitled' : _titleController.text,
-            style: AppTypography.headingLarge().copyWith(
-              fontWeight: FontWeight.w800,
-              fontSize: 28,
+            (_titleController.text.isEmpty ? 'Untitled' : _titleController.text).toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: colorScheme.primary,
+              letterSpacing: 1.0,
             ),
           ),
           const SizedBox(height: 16),

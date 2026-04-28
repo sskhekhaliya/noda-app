@@ -9,6 +9,8 @@ import '../providers/database_provider.dart';
 import '../providers/revision_provider.dart';
 import '../widgets/revision/note_card.dart';
 import '../widgets/revision/long_press_menu.dart';
+import '../providers/settings_provider.dart';
+import '../providers/tts_provider.dart';
 
 /// Full-screen revision feed — scrolls vertically through notes.
 class RevisionFeedScreen extends ConsumerStatefulWidget {
@@ -54,6 +56,11 @@ class _RevisionFeedScreenState extends ConsumerState<RevisionFeedScreen> {
             itemCount: revision.totalCount,
             onPageChanged: (index) {
               ref.read(revisionProvider.notifier).goToIndex(index);
+              final settings = ref.read(settingsProvider);
+              if (settings.autoplayTts) {
+                final note = revision.notes[index];
+                ref.read(ttsProvider.notifier).speak(note.content);
+              }
             },
             itemBuilder: (context, index) {
               final note = revision.notes[index];
@@ -215,6 +222,26 @@ class _TopOverlay extends ConsumerWidget {
                       onPressed: onShuffle,
                     ),
                   ],
+                  const SizedBox(width: 4),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final settings = ref.watch(settingsProvider);
+                      return IconButton(
+                        icon: Icon(
+                          settings.autoplayTts ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                          color: settings.autoplayTts ? colorScheme.primary : colorScheme.onSurface,
+                        ),
+                        onPressed: () {
+                          ref.read(settingsProvider.notifier).setAutoplayTts(!settings.autoplayTts);
+                          if (!settings.autoplayTts && revision.currentNote != null) {
+                            ref.read(ttsProvider.notifier).speak(revision.currentNote!.content);
+                          } else {
+                            ref.read(ttsProvider.notifier).stop();
+                          }
+                        },
+                      );
+                    },
+                  ),
                 ],
               ),
             ),

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' show Value;
 
@@ -78,22 +79,8 @@ class ImportExportService {
     final List<Map<String, dynamic>> flatNodes = [];
     final List<Map<String, dynamic>> flatCards = [];
 
-    // If subject has a note, create a child NOTE node for it
-    final subjectNote = subjectJson['note'] ?? '';
-    if (subjectNote is String && subjectNote.trim().isNotEmpty) {
-      flatNodes.add({
-        'id': uuid.v4(),
-        'parentId': subjectId,
-        'type': 'NOTE',
-        'title': '',
-        'content': subjectNote,
-        'icon': null,
-        'colorValue': null,
-        'orderIndex': 0,
-        'createdAt': now,
-        'updatedAt': now,
-      });
-    }
+    // Process notes (supports legacy "note" and new "notes" array)
+    _extractNotes(subjectJson, subjectId, flatNodes, uuid, now);
 
     // Process cards directly on the subject
     _processCards(subjectJson['cards'], subjectId, flatCards, uuid, now);
@@ -146,28 +133,63 @@ class ImportExportService {
         'updatedAt': now,
       });
 
-      // If node has a note, create a child NOTE node for it
-      final nodeNote = n['note'] ?? '';
-      if (nodeNote is String && nodeNote.trim().isNotEmpty) {
-        flatNodes.add({
-          'id': uuid.v4(),
-          'parentId': nodeId,
-          'type': 'NOTE',
-          'title': '',
-          'content': nodeNote,
-          'icon': null,
-          'colorValue': null,
-          'orderIndex': 0,
-          'createdAt': now,
-          'updatedAt': now,
-        });
-      }
+      // Process notes (supports legacy "note" and new "notes" array)
+      _extractNotes(n, nodeId, flatNodes, uuid, now);
 
       // Process cards on this node
       _processCards(n['cards'], nodeId, flatCards, uuid, now);
 
       // Recursively process child nodes
       _processNodes(n['nodes'], nodeId, flatNodes, flatCards, uuid, now);
+    }
+  }
+
+  void _extractNotes(Map<String, dynamic> json, String parentId, List<Map<String, dynamic>> flatNodes, Uuid uuid, String now) {
+    // 1. Handle legacy "note" field (string)
+    final legacyNote = json['note'];
+    if (legacyNote is String && legacyNote.trim().isNotEmpty) {
+      flatNodes.add({
+        'id': uuid.v4(),
+        'parentId': parentId,
+        'type': 'NOTE',
+        'title': '',
+        'content': legacyNote,
+        'icon': null,
+        'colorValue': null,
+        'orderIndex': 0,
+        'createdAt': now,
+        'updatedAt': now,
+      });
+    }
+
+    // 2. Handle new "notes" field (List of strings or objects)
+    final notes = json['notes'];
+    if (notes is List) {
+      for (final n in notes) {
+        String t = '';
+        String c = '';
+        if (n is String) {
+          c = n;
+        } else if (n is Map<String, dynamic>) {
+          t = n['title'] ?? '';
+          c = n['content'] ?? n['note'] ?? '';
+        }
+
+        if (c.trim().isNotEmpty || t.trim().isNotEmpty) {
+          flatNodes.add({
+            'id': uuid.v4(),
+            'parentId': parentId,
+            'type': 'NOTE',
+            'title': t,
+            'content': c,
+            'icon': null,
+            'colorValue': null,
+            'orderIndex': 0,
+            'createdAt': now,
+            'updatedAt': now,
+          });
+        }
+      }
     }
   }
 
@@ -207,22 +229,24 @@ class ImportExportService {
   // EXPORT — Simple Format
   // ──────────────────────────────────────────
 
-  Future<void> exportSubjectAsNoda(String subjectId) async {
+  // ──────────────────────────────────────────
+  // EXPORT — Simple Format
+  // ──────────────────────────────────────────
+
+  Future<void> exportSubjectAsNoda(String subjectId, {bool saveToDevice = false}) async {
     final subject = await db.getNodeById(subjectId);
     if (subject == null) return;
 
-    // Build the simple nested structure
     final simpleSubject = await _buildSimpleNode(subject, isRoot: true);
-
     final data = {'subject': simpleSubject};
-
     final jsonStr = const JsonEncoder.withIndent('  ').convert(data);
-    
-    final tempDir = await getTemporaryDirectory();
-    final file = File('${tempDir.path}/${subject.title.replaceAll(' ', '_')}.noda');
-    await file.writeAsString(jsonStr);
+    final fileName = '${subject.title.replaceAll(' ', '_')}.noda';
 
-    await Share.shareXFiles([XFile(file.path)], text: 'Exported Noda Subject: ${subject.title}');
+    if (saveToDevice || Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      await _saveToDevice(fileName, jsonStr);
+    } else {
+      await _shareFile(fileName, jsonStr, 'Exported Noda Subject: ${subject.title}');
+    }
   }
 
   /// Recursively build a simple nested representation of a node.
@@ -232,19 +256,29 @@ class ImportExportService {
 
     final Map<String, dynamic> result = {};
 
-    // Find child NOTE node (the app stores notes as child nodes with type 'NOTE')
+    // Find child NOTE nodes
     final childNotes = children.where((c) => c.type == 'NOTE').toList();
-    final noteContent = childNotes.isNotEmpty ? childNotes.first.content : '';
 
     if (isRoot) {
       result['title'] = node.title;
       if (node.content.isNotEmpty) result['description'] = node.content;
       if (node.icon != null) result['icon'] = node.icon;
       if (node.colorValue != null) result['colorValue'] = node.colorValue;
-      if (noteContent.isNotEmpty) result['note'] = noteContent;
     } else {
       result['name'] = node.title;
-      if (noteContent.isNotEmpty) result['note'] = noteContent;
+    }
+
+    // Include notes
+    if (childNotes.length == 1 && childNotes.first.title.isEmpty) {
+      // Legacy compatibility: single untitled note
+      result['note'] = childNotes.first.content;
+    } else if (childNotes.isNotEmpty) {
+      // Modern format: multiple notes and/or titled notes
+      result['notes'] = childNotes.map((n) {
+        final noteMap = <String, dynamic>{'content': n.content};
+        if (n.title.isNotEmpty) noteMap['title'] = n.title;
+        return noteMap;
+      }).toList();
     }
 
     if (cards.isNotEmpty) {
@@ -254,7 +288,7 @@ class ImportExportService {
       }).toList();
     }
 
-    // Only include child FOLDER nodes (not NOTEs, which are represented by "note" field)
+    // Only include child FOLDER nodes (not NOTEs, which are represented by "note"/"notes" field)
     final childFolders = children.where((c) => c.type == 'FOLDER').toList();
     if (childFolders.isNotEmpty) {
       final nodesList = <Map<String, dynamic>>[];
@@ -267,7 +301,7 @@ class ImportExportService {
     return result;
   }
 
-  Future<void> exportFullBackupAsNpack() async {
+  Future<void> exportFullBackupAsNpack({bool saveToDevice = false}) async {
     final rootNodes = await db.watchRootNodes().first;
     List<Node> allNodes = List.from(rootNodes);
     List<Card> allCards = [];
@@ -277,7 +311,6 @@ class ImportExportService {
       allCards.addAll(await db.getRecursiveCards(root.id));
     }
 
-    // Also get universal notes (no parent)
     final universalNotes = await db.watchUniversalNotes().first;
     allNodes.addAll(universalNotes);
 
@@ -289,13 +322,40 @@ class ImportExportService {
     };
 
     final jsonStr = jsonEncode(data);
-    
-    final tempDir = await getTemporaryDirectory();
     final dateStr = DateTime.now().toIso8601String().split('T').first;
-    final file = File('${tempDir.path}/Noda_Backup_$dateStr.npack');
-    await file.writeAsString(jsonStr);
+    final fileName = 'Noda_Backup_$dateStr.npack';
 
-    await Share.shareXFiles([XFile(file.path)], text: 'Noda Full Backup');
+    if (saveToDevice || Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      await _saveToDevice(fileName, jsonStr);
+    } else {
+      await _shareFile(fileName, jsonStr, 'Noda Full Backup');
+    }
+  }
+
+  Future<void> _shareFile(String fileName, String content, String shareText) async {
+    final tempDir = await getTemporaryDirectory();
+    final file = File('${tempDir.path}/$fileName');
+    await file.writeAsString(content);
+    await Share.shareXFiles([XFile(file.path)], text: shareText);
+  }
+
+  Future<void> _saveToDevice(String fileName, String content) async {
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      final outputPath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save File',
+        fileName: fileName,
+      );
+      if (outputPath != null) {
+        await File(outputPath).writeAsString(content);
+      }
+    } else {
+      // Mobile: Pick directory and save
+      final selectedDirectory = await FilePicker.platform.getDirectoryPath();
+      if (selectedDirectory != null) {
+        final file = File('$selectedDirectory/$fileName');
+        await file.writeAsString(content);
+      }
+    }
   }
 
   // ──────────────────────────────────────────
@@ -377,45 +437,47 @@ class ImportExportService {
 
     final String type = data['type'] ?? '';
 
-    if (type == 'noda_backup') {
-      // Overwrite entirely
-      // First wipe DB
-      final rootNodes = await db.watchRootNodes().first;
-      for (var root in rootNodes) {
-        await db.deleteNodeRecursive(root.id);
-      }
-      final universalNotes = await db.watchUniversalNotes().first;
-      for (var un in universalNotes) {
-        await db.deleteNodeRecursive(un.id);
-      }
+    await db.transaction(() async {
+      if (type == 'noda_backup') {
+        // Overwrite entirely
+        // First wipe DB
+        final rootNodes = await db.watchRootNodes().first;
+        for (var root in rootNodes) {
+          await db.deleteNodeRecursive(root.id);
+        }
+        final universalNotes = await db.watchUniversalNotes().first;
+        for (var un in universalNotes) {
+          await db.deleteNodeRecursive(un.id);
+        }
 
-      // Insert all
-      final nodes = data['nodes'] as List;
-      for (var n in nodes) {
-        await db.insertNode(_jsonToNodeCompanion(n));
+        // Insert all
+        final nodes = data['nodes'] as List;
+        for (var n in nodes) {
+          await db.insertNode(_jsonToNodeCompanion(n));
+        }
+        final cards = data['cards'] as List;
+        for (var c in cards) {
+          await db.insertCard(_jsonToCardCompanion(c));
+        }
+      } else if (type == 'noda_subject') {
+        if (strategy == ImportStrategy.overwrite && analysis.existingSubject != null) {
+          // Delete existing subject first
+          await db.deleteNodeRecursive((analysis.existingSubject?.id ?? ""));
+          // Then insert exactly as is
+          await _insertSubjectRaw(data);
+        } else if (strategy == ImportStrategy.rename) {
+          // Remap IDs and change subject name
+          await _insertSubjectMapped(data, newName ?? '${analysis.title} (Imported)');
+        } else if (strategy == ImportStrategy.appendUpdate && analysis.existingSubject != null) {
+          await _mergeSubject(data, analysis.existingSubject!, updateNotes: true);
+        } else if (strategy == ImportStrategy.appendSkip && analysis.existingSubject != null) {
+          await _mergeSubject(data, analysis.existingSubject!, updateNotes: false);
+        } else {
+          // No conflict, just insert
+          await _insertSubjectRaw(data);
+        }
       }
-      final cards = data['cards'] as List;
-      for (var c in cards) {
-        await db.insertCard(_jsonToCardCompanion(c));
-      }
-    } else if (type == 'noda_subject') {
-      if (strategy == ImportStrategy.overwrite && analysis.existingSubject != null) {
-        // Delete existing subject first
-        await db.deleteNodeRecursive((analysis.existingSubject?.id ?? ""));
-        // Then insert exactly as is
-        await _insertSubjectRaw(data);
-      } else if (strategy == ImportStrategy.rename) {
-        // Remap IDs and change subject name
-        await _insertSubjectMapped(data, newName ?? '${analysis.title} (Imported)');
-      } else if (strategy == ImportStrategy.appendUpdate && analysis.existingSubject != null) {
-        await _mergeSubject(data, analysis.existingSubject!, updateNotes: true);
-      } else if (strategy == ImportStrategy.appendSkip && analysis.existingSubject != null) {
-        await _mergeSubject(data, analysis.existingSubject!, updateNotes: false);
-      } else {
-        // No conflict, just insert
-        await _insertSubjectRaw(data);
-      }
-    }
+    });
   }
 
   NodesCompanion _jsonToNodeCompanion(Map<String, dynamic> json, {String? newId, String? newParentId, String? newTitle}) {
@@ -495,70 +557,152 @@ class ImportExportService {
       await db.updateNode(existingSubject.id, NodesCompanion(updatedAt: Value(now)));
     }
 
-    for (var n in data['nodes'] as List) {
+    await _mergeFolderContent(existingSubject.id, data['nodes'] ?? [], data['cards'] ?? [], idMap, updateNotes);
+  }
+
+  Future<void> _mergeFolderContent(String targetParentId, List<dynamic> incomingNodes, List<dynamic> incomingCards, Map<String, String> idMap, bool updateNotes) async {
+    final now = DateTime.now();
+    
+    for (var n in incomingNodes) {
       final oldId = n['id'];
       final oldParentId = n['parentId'];
-      final targetParentId = idMap[oldParentId] ?? existingSubject.id;
+      final currentTargetParentId = idMap[oldParentId] ?? targetParentId;
 
       if (n['type'] == 'FOLDER') {
         final title = n['title'];
-        final exists = await db.doesFolderExistInParent(targetParentId, title);
+        final exists = await db.doesFolderExistInParent(currentTargetParentId, title);
         if (exists) {
-          // Folder already exists — map the ID so child items land in the right place
-          final existingFolders = await db.getChildrenOf(targetParentId);
+          final existingFolders = await db.getChildrenOf(currentTargetParentId);
           final match = existingFolders.firstWhere((e) => e.type == 'FOLDER' && e.title.toLowerCase() == title.toLowerCase());
           idMap[oldId] = match.id;
-          
           if (updateNotes) {
-            // Update the folder's updatedAt to reflect new content activity
             await db.updateNode(match.id, NodesCompanion(updatedAt: Value(now)));
           }
         } else {
-          // New folder — insert it
           final newId = const Uuid().v4();
           idMap[oldId] = newId;
-          await db.insertNode(_jsonToNodeCompanion(n, newId: newId, newParentId: targetParentId));
+          await db.insertNode(_jsonToNodeCompanion(n, newId: newId, newParentId: currentTargetParentId));
         }
       } else if (n['type'] == 'NOTE') {
-        // Check if this parent already has a NOTE child
-        final existingChildren = await db.getChildrenOf(targetParentId);
-        final existingNote = existingChildren.where((e) => e.type == 'NOTE').toList();
+        final incomingTitle = n['title'] ?? '';
+        final incomingContent = n['content'] ?? '';
+        final existingChildren = await db.getChildrenOf(currentTargetParentId);
+        final existingNotes = existingChildren.where((e) => e.type == 'NOTE').toList();
 
-        if (existingNote.isNotEmpty) {
-          idMap[oldId] = existingNote.first.id;
+        Node? match;
+        if (incomingTitle.isNotEmpty) {
+          try {
+            match = existingNotes.firstWhere((e) => e.title.toLowerCase() == incomingTitle.toLowerCase());
+          } catch (_) { match = null; }
+        } else if (existingNotes.length == 1 && existingNotes.first.title.isEmpty) {
+          match = existingNotes.first;
+        }
+
+        if (match != null) {
+          idMap[oldId] = match.id;
           if (updateNotes) {
-            // Update mode: overwrite the existing note content
-            await db.updateNode(
-              existingNote.first.id,
-              NodesCompanion(
-                content: Value(n['content'] ?? ''),
-                updatedAt: Value(now),
-              ),
-            );
+            await db.updateNode(match.id, NodesCompanion(
+              title: Value(incomingTitle),
+              content: Value(incomingContent),
+              updatedAt: Value(now),
+            ));
           }
-          // Append mode: skip — keep original note
         } else {
-          // No existing note — insert it
           final newId = const Uuid().v4();
           idMap[oldId] = newId;
-          await db.insertNode(_jsonToNodeCompanion(n, newId: newId, newParentId: targetParentId));
+          await db.insertNode(_jsonToNodeCompanion(n, newId: newId, newParentId: currentTargetParentId));
         }
       }
     }
 
-    // Cards: always add new ones, always skip duplicates (never touch progress)
-    for (var c in data['cards'] as List) {
+    for (var c in incomingCards) {
       final oldParentId = c['parentId'];
-      final targetParentId = idMap[oldParentId] ?? existingSubject.id;
+      final currentTargetParentId = idMap[oldParentId] ?? targetParentId;
       final front = c['front'];
       final back = c['back'];
 
-      final exists = await db.doesCardExistInParent(targetParentId, front, back);
+      final exists = await db.doesCardExistInParent(currentTargetParentId, front, back);
       if (!exists) {
-        await db.insertCard(_jsonToCardCompanion(c, newId: const Uuid().v4(), newParentId: targetParentId));
+        await db.insertCard(_jsonToCardCompanion(c, newId: const Uuid().v4(), newParentId: currentTargetParentId));
       }
-      // Duplicate cards are always skipped — study progress is never touched
     }
+  }
+
+  /// Specialized import for a specific folder.
+  Future<void> importFolderData(String parentId, String jsonStr, ImportStrategy strategy) async {
+    final Map<String, dynamic> data = jsonDecode(jsonStr);
+    final uuid = const Uuid();
+    final now = DateTime.now().toIso8601String();
+
+    await db.transaction(() async {
+      final Map<String, String> idMap = {};
+      final List<Map<String, dynamic>> incomingNodes = [];
+      final List<Map<String, dynamic>> incomingCards = [];
+
+      // 1. Handle Notes (Treated as child nodes)
+      if (data.containsKey('notes')) {
+        // OVERWRITE or UPDATE: If key is present, we clear existing notes in this folder first
+        // to sync with the incoming list (even if it's empty).
+        final children = await db.getChildrenOf(parentId);
+        final existingNotes = children.where((n) => n.type == 'NOTE').toList();
+        for (var en in existingNotes) {
+          await db.deleteNodeRecursive(en.id);
+        }
+        
+        _extractNotes(data, parentId, incomingNodes, uuid, now);
+      }
+
+      // 2. Handle Sub-folders (nodes)
+      if (data.containsKey('nodes')) {
+        final nodesJson = data['nodes'];
+        
+        // If OVERWRITE mode and key is present, clear existing folders
+        if (strategy == ImportStrategy.overwrite) {
+          final children = await db.getChildrenOf(parentId);
+          final existingFolders = children.where((n) => n.type == 'FOLDER').toList();
+          for (var ef in existingFolders) {
+            await db.deleteNodeRecursive(ef.id);
+          }
+        } 
+        // In UPDATE mode, we MERGE folders (don't clear).
+        // Except if nodes: [] is explicitly provided, user wants them gone.
+        else if (strategy == ImportStrategy.appendUpdate && nodesJson is List && nodesJson.isEmpty) {
+          final children = await db.getChildrenOf(parentId);
+          final existingFolders = children.where((n) => n.type == 'FOLDER').toList();
+          for (var ef in existingFolders) {
+            await db.deleteNodeRecursive(ef.id);
+          }
+        }
+        
+        _processNodes(nodesJson, parentId, incomingNodes, incomingCards, uuid, now);
+      }
+
+      // 3. Handle Cards
+      if (data.containsKey('cards')) {
+        final cardsJson = data['cards'];
+        
+        // If OVERWRITE mode and key is present, clear existing cards
+        if (strategy == ImportStrategy.overwrite) {
+          final cards = await db.getCardsOf(parentId);
+          for (var c in cards) {
+            await db.deleteCard(c.id);
+          }
+        }
+        // In UPDATE mode, we MERGE cards.
+        // Except if cards: [] is explicitly provided.
+        else if (strategy == ImportStrategy.appendUpdate && cardsJson is List && cardsJson.isEmpty) {
+          final cards = await db.getCardsOf(parentId);
+          for (var c in cards) {
+            await db.deleteCard(c.id);
+          }
+        }
+        
+        _processCards(cardsJson, parentId, incomingCards, uuid, now);
+      }
+
+      // Perform the merge/insert
+      await _mergeFolderContent(parentId, incomingNodes, incomingCards, idMap, strategy == ImportStrategy.appendUpdate);
+    });
   }
 }
 

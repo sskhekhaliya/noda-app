@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -28,6 +29,8 @@ import '../providers/cards_provider.dart';
 import '../providers/study_provider.dart';
 import '../providers/nodes_provider.dart';
 import '../widgets/hierarchy/card_tile.dart';
+import '../services/import_export_service.dart';
+import 'package:file_picker/file_picker.dart';
 
 /// The hierarchy navigation screen — entered from a subject card.
 /// Implements Adaptive Depth Flattening at depth > 2.
@@ -132,7 +135,7 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
                 
                 if (folderNodes.isEmpty && cards.isEmpty) {
                   return _EmptyFolder(
-                    title: _currentParentId == widget.rootNodeId ? 'Empty Subject' : 'Empty Topic',
+                    title: 'No cards',
                     onCreate: () => _showCreateOptions(context),
                   );
                 }
@@ -257,8 +260,13 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
                 PopupMenuButton<String>(
                   onSelected: (val) {
                     if (val == 'reset') _handleBulkDeleteAll();
+                    if (val == 'import') _handleFolderImport();
                   },
                   itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'import',
+                      child: Text('Import into this Folder'),
+                    ),
                     const PopupMenuItem(
                       value: 'reset',
                       child: Text('Reset Subject (Delete All)'),
@@ -379,6 +387,166 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
         await db.deleteCard(card.id);
       }
     }
+  }
+
+  Future<void> _handleFolderImport() async {
+    final option = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Import Source'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'file'),
+            child: const Row(
+              children: [
+                Icon(Icons.file_open_rounded),
+                SizedBox(width: 12),
+                Text('Pick .noda File'),
+              ],
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'text'),
+            child: const Row(
+              children: [
+                Icon(Icons.code_rounded),
+                SizedBox(width: 12),
+                Text('Paste JSON Text'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (option == null) return;
+
+    String? jsonStr;
+
+    if (option == 'file') {
+      try {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['noda', 'json'],
+        );
+
+        if (result == null || result.files.single.path == null) return;
+        final file = File(result.files.single.path!);
+        jsonStr = await file.readAsString();
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to read file: $e')));
+        return;
+      }
+    } else {
+      jsonStr = await _showJsonInputDialog();
+    }
+
+    if (jsonStr == null || jsonStr.trim().isEmpty) return;
+
+    if (!mounted) return;
+
+    final strategy = await showDialog<ImportStrategy>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import Strategy'),
+        content: const Text(
+          'How would you like to apply this data?\n\n'
+          '• UPDATE: Merges new items, replaces notes if key exists.\n'
+          '• OVERWRITE: Wipes folder content before importing.'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, ImportStrategy.appendUpdate),
+            child: const Text('UPDATE'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, ImportStrategy.overwrite),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('OVERWRITE'),
+          ),
+        ],
+      ),
+    );
+
+    if (strategy == null) return;
+
+    if (strategy == ImportStrategy.overwrite) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Confirm Overwrite'),
+          content: const Text('This will PERMANENTLY delete all existing cards, notes, and sub-folders in this folder. Are you absolutely sure?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('CANCEL')),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              child: const Text('OVERWRITE EVERYTHING'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    try {
+      final service = ref.read(importExportServiceProvider);
+      await service.importFolderData(_currentParentId, jsonStr, strategy);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Import completed successfully.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Import failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<String?> _showJsonInputDialog() async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Paste JSON Content'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: TextField(
+            controller: controller,
+            maxLines: 10,
+            decoration: const InputDecoration(
+              hintText: '{\n  "notes": [...],\n  "cards": [...]\n}',
+              border: OutlineInputBorder(),
+            ),
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('IMPORT'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _startRevision(Node? node, RevisionMode mode) async {
@@ -884,7 +1052,7 @@ class _EmptyFolder extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Structure your knowledge with modules, \nrich notes, and revision cards.',
+              'Capture your thoughts with notes or create\nflashcards to start learning.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
@@ -1033,8 +1201,26 @@ class _ModuleNotePreview extends StatelessWidget {
                   child: IgnorePointer(
                     child: SingleChildScrollView(
                       physics: const NeverScrollableScrollPhysics(),
-                      child: NodaMarkdown(
-                        data: _extractPlainText(note.content),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (note.title.isNotEmpty) ...[
+                            Text(
+                              note.title,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: colorScheme.onSurface,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Divider(color: colorScheme.outline.withValues(alpha: 0.1)),
+                            const SizedBox(height: 12),
+                          ],
+                          NodaMarkdown(
+                            data: _extractPlainText(note.content),
+                          ),
+                        ],
                       ),
                     ),
                   ),

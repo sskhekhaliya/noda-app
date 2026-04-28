@@ -244,7 +244,7 @@ class _CreateNodeScreenState extends ConsumerState<CreateNodeScreen> {
                   TextField(
                     controller: _titleController,
                     autofocus: true,
-                    style: AppTypography.headingLarge().copyWith(fontWeight: FontWeight.w600, fontSize: 24),
+                    style: AppTypography.headingLarge().copyWith(fontWeight: FontWeight.w600, fontSize: 20),
                     maxLines: null,
                     decoration: InputDecoration(
                       hintText: 'Title',
@@ -291,11 +291,12 @@ class _CreateNodeScreenState extends ConsumerState<CreateNodeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _titleController.text.isEmpty ? 'Untitled' : _titleController.text,
-            style: AppTypography.headingLarge().copyWith(
-              fontWeight: FontWeight.w800, 
-              fontSize: 32,
-              height: 1.2,
+            (_titleController.text.isEmpty ? 'Untitled' : _titleController.text).toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: colorScheme.primary,
+              letterSpacing: 1.0,
             ),
           ),
           const SizedBox(height: 24),

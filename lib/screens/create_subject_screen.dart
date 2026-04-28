@@ -8,7 +8,6 @@ import '../core/theme/app_theme.dart';
 import '../widgets/subject_pickers.dart';
 import '../providers/database_provider.dart';
 import '../data/database/app_database.dart';
-import 'rich_text_editor_screen.dart';
 
 class CreateSubjectScreen extends ConsumerStatefulWidget {
   final Node? editingNode;
@@ -300,38 +299,25 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  GestureDetector(
-                    onTap: () async {
-                      final json = _descriptionController.text.trim();
-                      final result = await Navigator.push<String>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RichTextEditorScreen(
-                            initialJson: json,
-                            title: 'Subject Description',
-                          ),
-                        ),
-                      );
-                      if (result != null) {
-                        setState(() => _descriptionController.text = result);
-                      }
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(20),
+                  TextField(
+                    controller: _descriptionController,
+                    maxLines: 4,
+                    maxLength: 350,
+                    style: theme.textTheme.bodyMedium,
+                    decoration: InputDecoration(
+                      hintText: 'Brief overview of what this subject covers...',
+                      hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant.withOpacity(0.5),
                       ),
-                      child: Text(
-                        _descriptionController.text.isEmpty
-                            ? 'Brief overview of what this subject covers...'
-                            : 'Description attached (Rich Text)',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: _descriptionController.text.isEmpty
-                              ? colorScheme.onSurfaceVariant.withOpacity(0.5)
-                              : colorScheme.onSurface,
-                        ),
+                      fillColor: colorScheme.surfaceContainerLow,
+                      filled: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.all(16),
+                      counterStyle: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),

@@ -26,6 +26,7 @@ import '../widgets/import_conflict_dialog.dart';
 import 'study_screen.dart';
 import '../providers/study_provider.dart';
 import 'notes_library_screen.dart';
+import 'settings_screen.dart';
 
 /// Main home screen showing root-level subjects.
 class HomeScreen extends ConsumerStatefulWidget {
@@ -153,6 +154,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 _handleImport();
               } else if (value == 'import_json') {
                 _showJsonImportDialog();
+              } else if (value == 'settings') {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
               }
             },
             itemBuilder: (context) => [
@@ -167,6 +170,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               const PopupMenuItem(
                 value: 'export_backup',
                 child: Text('Export Full Backup (.npack)'),
+              ),
+              const PopupMenuItem(
+                value: 'settings',
+                child: Text('Settings'),
               ),
             ],
           ),
@@ -487,13 +494,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           icon: Icons.school_rounded,
                           label: 'Study All',
                           isGradient: true,
-                          onTap: () async {
-                            await ref.read(studyProvider.notifier).startGlobalSession();
-                            if (!mounted) return;
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const StudyScreen()),
-                            );
-                          },
+                        onTap: () async {
+                          await ref.read(studyProvider.notifier).startGlobalSession(isShuffle: false);
+                          if (!mounted) return;
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const StudyScreen()),
+                          );
+                        },
                         ),
                         const SizedBox(width: 12),
                         _MasterAction(
@@ -519,7 +526,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       label: 'Study All',
                       isGradient: true,
                       onTap: () async {
-                        await ref.read(studyProvider.notifier).startGlobalSession();
+                        await ref.read(studyProvider.notifier).startGlobalSession(isShuffle: false);
                         if (!mounted) return;
                         Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const StudyScreen()),
@@ -1201,10 +1208,18 @@ class _SubjectCardState extends ConsumerState<_SubjectCard>
             ),
             ListTile(
               leading: const Icon(Icons.share_rounded),
-              title: const Text('Export Subject (.noda)'),
+              title: const Text('Share Subject (.noda)'),
               onTap: () {
                 Navigator.pop(ctx);
-                ref.read(importExportServiceProvider).exportSubjectAsNoda(widget.node.id);
+                ref.read(importExportServiceProvider).exportSubjectAsNoda(widget.node.id, saveToDevice: false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.download_rounded),
+              title: const Text('Download to Device'),
+              onTap: () {
+                Navigator.pop(ctx);
+                ref.read(importExportServiceProvider).exportSubjectAsNoda(widget.node.id, saveToDevice: true);
               },
             ),
             ListTile(
@@ -1490,10 +1505,18 @@ class _SideDrawer extends ConsumerWidget {
           const Divider(indent: 24, endIndent: 24),
           ListTile(
             leading: const Icon(Icons.upload_file_rounded),
-            title: const Text('Export Backup'),
+            title: const Text('Share Full Backup'),
             onTap: () async {
               final service = ref.read(importExportServiceProvider);
-              await service.exportFullBackupAsNpack();
+              await service.exportFullBackupAsNpack(saveToDevice: false);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.download_for_offline_rounded),
+            title: const Text('Download Backup'),
+            onTap: () async {
+              final service = ref.read(importExportServiceProvider);
+              await service.exportFullBackupAsNpack(saveToDevice: true);
             },
           ),
           ListTile(
@@ -1517,11 +1540,8 @@ class _SideDrawer extends ConsumerWidget {
             leading: const Icon(Icons.settings_outlined),
             title: const Text('Settings'),
             onTap: () {
-              // TODO: Navigate to actual SettingsScreen when implemented
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings screen coming soon')),
-              );
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
             },
           ),
           const Spacer(),

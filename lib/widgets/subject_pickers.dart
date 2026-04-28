@@ -57,9 +57,26 @@ class IconPickerGrid extends StatelessWidget {
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                 ),
-                itemCount: curatedIcons.length,
+                itemCount: curatedIcons.length + 1,
                 itemBuilder: (context, index) {
-                  final icon = curatedIcons[index];
+                  if (index == 0) {
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context); // Close library first
+                        showCustomIconDialog(context, onIconSelected);
+                      },
+                      child: Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                        ),
+                        child: const Icon(Icons.add_rounded),
+                      ),
+                    );
+                  }
+                  final icon = curatedIcons[index - 1];
                   return GestureDetector(
                     onTap: () {
                       onIconSelected(icon);
@@ -83,11 +100,58 @@ class IconPickerGrid extends StatelessWidget {
     );
   }
 
+  static void showCustomIconDialog(BuildContext context, ValueChanged<String> onIconSelected) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Custom Symbol'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter an emoji or a short text symbol.'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 32),
+              decoration: InputDecoration(
+                hintText: 'A-Z or 😀',
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              ),
+              maxLength: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = controller.text.trim();
+              if (val.isNotEmpty) {
+                onIconSelected(val);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    // Show 7 curated icons + "More" = 8 items (2 rows of 4)
     final initialIcons = curatedIcons.take(7).toList();
 
     return GridView.builder(
@@ -101,6 +165,7 @@ class IconPickerGrid extends StatelessWidget {
       itemCount: initialIcons.length + 1,
       itemBuilder: (context, index) {
         if (index == initialIcons.length) {
+          // More Button
           return GestureDetector(
             onTap: () => showFullEmojiPicker(context, onIconSelected),
             child: Container(

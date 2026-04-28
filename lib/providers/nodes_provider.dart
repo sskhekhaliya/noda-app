@@ -31,9 +31,9 @@ final ancestorPathProvider =
 
 /// Provider for recursive note count under a node.
 final recursiveNoteCountProvider =
-    FutureProvider.family<int, String>((ref, nodeId) {
+    StreamProvider.family<int, String>((ref, nodeId) {
   final db = ref.watch(databaseProvider);
-  return db.countRecursiveNotes(nodeId);
+  return db.watchRecursiveNotesCount(nodeId);
 });
 
 /// Provider for universal (orphan) notes.

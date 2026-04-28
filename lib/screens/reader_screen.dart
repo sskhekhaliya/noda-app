@@ -361,10 +361,12 @@ class _ReaderPage extends StatelessWidget {
             children: [
               if (note.title.isNotEmpty) ...[
                 Text(
-                  note.title,
-                  style: AppTypography.headingLarge().copyWith(
-                    fontSize: 32,
-                    height: 1.2,
+                  note.title.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: colorScheme.primary,
+                    letterSpacing: 1.0,
                   ),
                 ),
                 const SizedBox(height: 24),

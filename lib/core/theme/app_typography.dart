@@ -11,7 +11,7 @@ class AppTypography {
   // ──────────────────────────────────────────
 
   static TextStyle headingLarge({Color? color}) => GoogleFonts.manrope(
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: FontWeight.w700,
     letterSpacing: -0.5,
     color: color,
@@ -94,7 +94,7 @@ class AppTypography {
   );
 
   static TextStyle noteTitle({Color? color}) => GoogleFonts.manrope(
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: FontWeight.w700,
     letterSpacing: -0.4,
     height: 1.3,

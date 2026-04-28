@@ -75,6 +75,14 @@ class StudyNotifier extends StateNotifier<StudyState> {
     } else {
       cards = await _fetchHierarchyOrderedCards(parentId);
     }
+
+    // Filter out cards reviewed today
+    final now = DateTime.now();
+    cards = cards.where((c) {
+      if (c.lastReviewAt == null) return true;
+      final last = c.lastReviewAt!;
+      return !(last.year == now.year && last.month == now.month && last.day == now.day);
+    }).toList();
     
     state = state.copyWith(
       allCards: cards,
@@ -127,20 +135,52 @@ class StudyNotifier extends StateNotifier<StudyState> {
     return orderedCards;
   }
 
-  Future<void> startGlobalSession() async {
+  Future<List<Card>> _fetchGlobalOrderedCards() async {
+    final rootNodes = await _db.watchRootNodes().first;
+    final orderedCards = <Card>[];
+
+    for (final root in rootNodes) {
+      final cards = await _fetchHierarchyOrderedCards(root.id);
+      orderedCards.addAll(cards);
+    }
+    return orderedCards;
+  }
+
+  Future<void> startGlobalSession({bool isShuffle = true}) async {
     state = state.copyWith(
       isLoading: true, 
       parentTitle: 'All Subjects',
       allCards: [],
       clearCurrentCard: true,
       startNodeId: 'GLOBAL',
+      isShuffle: isShuffle,
     );
     
-    // Fetch all cards and all node titles for global context
-    final cards = await (_db.select(_db.cards)).get();
-    
+    // Fetch all node titles for global context
     final allNodes = await (_db.select(_db.nodes)).get();
     final nodeTitles = {for (var n in allNodes) n.id: n.title};
+
+    List<Card> cards;
+    if (isShuffle) {
+      cards = await (_db.select(_db.cards)).get();
+    } else {
+      // For global sequential, we traverse each subject in order
+      final rootNodes = await _db.watchRootNodes().first;
+      final tempCards = <Card>[];
+      for (final root in rootNodes) {
+        final subjectCards = await _fetchHierarchyOrderedCards(root.id);
+        tempCards.addAll(subjectCards);
+      }
+      cards = tempCards;
+    }
+
+    // Filter out cards reviewed today
+    final now = DateTime.now();
+    cards = cards.where((c) {
+      if (c.lastReviewAt == null) return true;
+      final last = c.lastReviewAt!;
+      return !(last.year == now.year && last.month == now.month && last.day == now.day);
+    }).toList();
     
     state = state.copyWith(
       allCards: cards,

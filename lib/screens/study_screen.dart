@@ -6,6 +6,8 @@ import '../core/theme/app_typography.dart';
 import '../core/theme/app_theme.dart';
 import '../providers/study_provider.dart';
 import '../widgets/common/noda_markdown.dart';
+import '../providers/settings_provider.dart';
+import '../providers/tts_provider.dart';
 
 class StudyScreen extends ConsumerStatefulWidget {
   const StudyScreen({super.key});
@@ -22,6 +24,42 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
     final state = ref.watch(studyProvider);
     final notifier = ref.read(studyProvider.notifier);
     final colorScheme = Theme.of(context).colorScheme;
+    final settings = ref.watch(settingsProvider);
+    final tts = ref.watch(ttsProvider);
+
+    // Autoplay TTS - New Card (Front)
+    ref.listen(studyProvider, (previous, next) {
+      if (next.currentCard != null && next.currentCard?.id != (previous?.currentCard?.id)) {
+        ref.read(ttsProvider.notifier).stop();
+        if (settings.autoplayTts) {
+          ref.read(ttsProvider.notifier).speak(next.currentCard!.front);
+        }
+      }
+    });
+
+    // Autoplay TTS - Flip (Back)
+    ref.listen(studyProvider.select((s) => s.isFlipped), (previous, next) {
+      if (next == true && state.currentCard != null) {
+        ref.read(ttsProvider.notifier).stop();
+        if (settings.autoplayTts) {
+          ref.read(ttsProvider.notifier).speak(state.currentCard!.back);
+        }
+      } else if (next == false) {
+        ref.read(ttsProvider.notifier).stop();
+      }
+    });
+
+    // Handle initial card speech on mount
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (state.currentCard != null && !tts.isPlaying && settings.autoplayTts && state.isFlipped == false && !state.isLoading) {
+         // Use a small delay to ensure navigation transition is smooth
+         Future.delayed(const Duration(milliseconds: 500), () {
+           if (mounted && settings.autoplayTts) {
+             ref.read(ttsProvider.notifier).speak(state.currentCard!.front);
+           }
+         });
+      }
+    });
 
     if (state.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -31,10 +69,31 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            ref.read(ttsProvider.notifier).stop();
+            Navigator.pop(context);
+          },
         ),
         title: Text(state.parentTitle, style: AppTypography.headingSmall()),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+              settings.autoplayTts ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+              color: settings.autoplayTts ? colorScheme.primary : colorScheme.onSurfaceVariant,
+            ),
+            tooltip: settings.autoplayTts ? 'Turn Sound Off' : 'Turn Sound On',
+            onPressed: () {
+              ref.read(settingsProvider.notifier).setAutoplayTts(!settings.autoplayTts);
+              if (!settings.autoplayTts && state.currentCard != null) {
+                ref.read(ttsProvider.notifier).speak(state.currentCard!.front);
+              } else if (settings.autoplayTts) {
+                ref.read(ttsProvider.notifier).stop();
+              }
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
@@ -93,10 +152,12 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
                         ),
                         onFlip: notifier.flip,
                         onSwipeLeft: () {
+                          ref.read(ttsProvider.notifier).stop();
                           setState(() => _exitTrigger = null);
                           notifier.vote(false);
                         },
                         onSwipeRight: () {
+                          ref.read(ttsProvider.notifier).stop();
                           setState(() => _exitTrigger = null);
                           notifier.vote(true);
                         },

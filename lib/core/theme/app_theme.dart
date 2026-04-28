@@ -47,8 +47,8 @@ class AppTheme {
       ),
     ),
     dividerTheme: DividerThemeData(
-      color: AppColors.lightDivider.withOpacity(0.08),
-      thickness: 0.5,
+      color: AppColors.lightDivider.withValues(alpha: 0.05),
+      thickness: 0.2,
       space: 1,
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
@@ -145,8 +145,8 @@ class AppTheme {
       ),
     ),
     dividerTheme: DividerThemeData(
-      color: AppColors.darkDivider.withOpacity(0.15),
-      thickness: 0.5,
+      color: AppColors.darkDivider.withValues(alpha: 0.1),
+      thickness: 0.2,
       space: 1,
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(

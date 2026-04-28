@@ -11,9 +11,9 @@ final cardsOfProvider =
 
 /// Provider for recursive card count under a node.
 final recursiveCardCountProvider =
-    FutureProvider.family<int, String>((ref, nodeId) {
+    StreamProvider.family<int, String>((ref, nodeId) {
   final db = ref.watch(databaseProvider);
-  return db.countRecursiveCards(nodeId);
+  return db.watchRecursiveCardsCount(nodeId);
 });
 
 /// Provider for all cards in the database.

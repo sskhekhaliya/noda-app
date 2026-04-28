@@ -6,8 +6,13 @@ import 'core/theme/app_theme.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
 
-void main() {
+import 'package:shared_preferences/shared_preferences.dart';
+import 'providers/settings_provider.dart';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final prefs = await SharedPreferences.getInstance();
 
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
@@ -18,7 +23,14 @@ void main() {
     ),
   );
 
-  runApp(const ProviderScope(child: NodaApp()));
+  runApp(
+    ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
+      child: const NodaApp(),
+    ),
+  );
 }
 
 class NodaApp extends ConsumerWidget {
