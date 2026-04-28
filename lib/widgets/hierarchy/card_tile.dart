@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/preview_utils.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
 import '../../data/database/app_database.dart';
@@ -26,26 +27,7 @@ class CardTile extends ConsumerWidget {
     final isSelected = selection.contains(card.id);
     final isSelectionMode = selection.isNotEmpty;
 
-    String _getPreviewText(String text) {
-      if (text.isEmpty) return '';
-      return text
-          .replaceAll(RegExp(r'^\s*[-*_]{3,}\s*$', multiLine: true), '') // Horizontal rules
-          .replaceAll(RegExp(r'^#+\s+', multiLine: true), '') // Headers
-          .replaceAllMapped(RegExp(r'[*_]{1,2}([^*_]+)[*_]{1,2}'), (m) => m[1] ?? '') // Bold/Italic
-          .replaceAllMapped(RegExp(r'~~([^~]+)~~'), (m) => m[1] ?? '') // Strikethrough
-          .replaceAllMapped(RegExp(r'`([^`]+)`'), (m) => m[1] ?? '') // Inline code
-          .replaceAll(RegExp(r'```[^`]*```'), '') // Code blocks
-          .replaceAll(RegExp(r'^>\s+', multiLine: true), '') // Blockquotes
-          .replaceAll(RegExp(r'^[*-]\s+', multiLine: true), '') // Unordered lists
-          .replaceAll(RegExp(r'^\d+\.\s+', multiLine: true), '') // Ordered lists
-          .replaceAllMapped(RegExp(r'\[(.*?)\]\(.*?\)'), (m) => m[1] ?? '') // Links
-          .replaceAll(RegExp(r'\n+'), ' ') // Convert newlines to spaces
-          .replaceAll(RegExp(r'\s+'), ' ') // Collapse multiple spaces
-          .trim();
-    }
-
-    final frontPreview = _getPreviewText(card.front);
-    final backPreview = _getPreviewText(card.back);
+    final frontPreview = PreviewUtils.stripMarkdown(card.front);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -90,16 +72,7 @@ class CardTile extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                         color: isSelected ? colorScheme.primary : null,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      backPreview.isEmpty ? 'No answer' : backPreview,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: noda.textSecondary,
-                      ),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],

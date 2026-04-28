@@ -9,6 +9,7 @@ import '../providers/nodes_provider.dart';
 import '../providers/navigation_provider.dart';
 import '../widgets/hierarchy/breadcrumb_bar.dart';
 import 'reader_screen.dart';
+import '../core/utils/preview_utils.dart';
 
 class NotesLibraryScreen extends ConsumerWidget {
   const NotesLibraryScreen({super.key});
@@ -375,14 +376,7 @@ class _NoteGridTile extends StatelessWidget {
   }
 
   String _extractSnippet(String content) {
-    if (content.startsWith('[{"insert":')) {
-      try {
-        final List<dynamic> json = jsonDecode(content);
-        final text = json.map((part) => part['insert'] ?? '').join().trim();
-        return text;
-      } catch (_) {}
-    }
-    return content.trim();
+    return PreviewUtils.stripMarkdown(content);
   }
 }
 
@@ -571,14 +565,7 @@ class _FeedCard extends StatelessWidget {
   }
 
   String _extractSnippet(String content) {
-    if (content.startsWith('[{"insert":')) {
-      try {
-        final List<dynamic> json = jsonDecode(content);
-        final text = json.map((part) => part['insert'] ?? '').join().trim();
-        return text;
-      } catch (_) {}
-    }
-    return content.trim();
+    return PreviewUtils.stripMarkdown(content);
   }
 }
 

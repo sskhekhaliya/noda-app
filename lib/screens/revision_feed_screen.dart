@@ -22,11 +22,27 @@ class RevisionFeedScreen extends ConsumerStatefulWidget {
 
 class _RevisionFeedScreenState extends ConsumerState<RevisionFeedScreen> {
   late final PageController _pageController;
+  bool _hasSpokenInitial = false;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+    
+    // Initial speech for the first note
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final settings = ref.read(settingsProvider);
+      final revision = ref.read(revisionProvider);
+      if (settings.autoplayTts && revision.notes.isNotEmpty && !_hasSpokenInitial) {
+        _hasSpokenInitial = true;
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && ref.read(settingsProvider).autoplayTts) {
+            final firstNote = ref.read(revisionProvider).notes[0];
+            ref.read(ttsProvider.notifier).speak(firstNote.content);
+          }
+        });
+      }
+    });
   }
 
   @override

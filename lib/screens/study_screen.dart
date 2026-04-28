@@ -18,6 +18,25 @@ class StudyScreen extends ConsumerStatefulWidget {
 
 class _StudyScreenState extends ConsumerState<StudyScreen> {
   String? _exitTrigger; // 'left', 'right', or null
+  bool _hasSpokenInitial = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start initial speech after mount
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final settings = ref.read(settingsProvider);
+      final state = ref.read(studyProvider);
+      if (settings.autoplayTts && state.currentCard != null && !_hasSpokenInitial) {
+        _hasSpokenInitial = true;
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && ref.read(settingsProvider).autoplayTts) {
+            ref.read(ttsProvider.notifier).speak(state.currentCard!.front);
+          }
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,18 +65,6 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
         }
       } else if (next == false) {
         ref.read(ttsProvider.notifier).stop();
-      }
-    });
-
-    // Handle initial card speech on mount
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (state.currentCard != null && !tts.isPlaying && settings.autoplayTts && state.isFlipped == false && !state.isLoading) {
-         // Use a small delay to ensure navigation transition is smooth
-         Future.delayed(const Duration(milliseconds: 500), () {
-           if (mounted && settings.autoplayTts) {
-             ref.read(ttsProvider.notifier).speak(state.currentCard!.front);
-           }
-         });
       }
     });
 

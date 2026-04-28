@@ -129,6 +129,10 @@ class NodaMarkdown extends ConsumerWidget {
         md.ExtensionSet.gitHubFlavored.blockSyntaxes,
         [
           ...md.ExtensionSet.gitHubFlavored.inlineSyntaxes,
+          StyleTagSyntax(),
+          StaticHighlightSyntax(),
+          WikiLinkSyntax(),
+          HighlightSyntax(),
         ],
       ),
       blockSyntaxes: const [
@@ -136,11 +140,7 @@ class NodaMarkdown extends ConsumerWidget {
         md.HtmlBlockSyntax(),
       ],
       inlineSyntaxes: [
-        StyleTagSyntax(),
         md.InlineHtmlSyntax(),
-        StaticHighlightSyntax(),
-        WikiLinkSyntax(),
-        HighlightSyntax(),
       ],
       builders: {
         'wikilink': WikiLinkBuilder(
@@ -161,12 +161,14 @@ class NodaMarkdown extends ConsumerWidget {
         ),
         'blockquote': CalloutBuilder(colorScheme: colorScheme),
         'span': StyleBuilder(),
-        'mark': StaticHighlightBuilder(
-          color: colorScheme.primary.withOpacity(0.15),
+        'noda-highlight': StaticHighlightBuilder(
+          color: colorScheme.brightness == Brightness.light
+              ? const Color(0xFFE0E7FF) // Soft Lavender (Light)
+              : colorScheme.primary.withOpacity(0.25), // Translucent Sapphire (Dark)
         ),
         'highlight': HighlightBuilder(
           highlightStyle: AppTypography.bodyLarge().copyWith(
-            backgroundColor: colorScheme.primary.withOpacity(0.2),
+            backgroundColor: colorScheme.primary.withOpacity(0.25),
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -520,7 +522,7 @@ class StaticHighlightSyntax extends md.InlineSyntax {
   @override
   bool onMatch(md.InlineParser parser, Match match) {
     final content = match[1] ?? '';
-    parser.addNode(md.Element('mark', md.InlineParser(content, parser.document).parse()));
+    parser.addNode(md.Element('noda-highlight', md.InlineParser(content, parser.document).parse()));
     return true;
   }
 }
@@ -531,10 +533,15 @@ class StaticHighlightBuilder extends MarkdownElementBuilder {
   StaticHighlightBuilder({required this.color});
 
   @override
-  TextStyle? getTextStyle(md.Element element, TextStyle preferredStyle) {
-    return preferredStyle.copyWith(
-      backgroundColor: color,
-      fontWeight: FontWeight.w600,
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    return Text.rich(
+      TextSpan(
+        text: element.textContent,
+        style: (preferredStyle ?? const TextStyle()).copyWith(
+          backgroundColor: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }

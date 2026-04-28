@@ -31,6 +31,7 @@ import '../providers/nodes_provider.dart';
 import '../widgets/hierarchy/card_tile.dart';
 import '../services/import_export_service.dart';
 import 'package:file_picker/file_picker.dart';
+import '../core/utils/preview_utils.dart';
 
 /// The hierarchy navigation screen — entered from a subject card.
 /// Implements Adaptive Depth Flattening at depth > 2.
@@ -997,14 +998,7 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
   }
 
   String _extractSnippet(String content) {
-    if (content.startsWith('[{"insert":')) {
-      try {
-        final List<dynamic> json = jsonDecode(content);
-        final plainText = json.map((part) => part['insert'] ?? '').join().trim();
-        return plainText.length > 100 ? '${plainText.substring(0, 100)}...' : plainText;
-      } catch (_) {}
-    }
-    return content.length > 100 ? '${content.substring(0, 100)}...' : content;
+    return PreviewUtils.stripMarkdown(content);
   }
 }
 
@@ -1152,13 +1146,7 @@ class _ModuleNotePreview extends StatelessWidget {
   const _ModuleNotePreview({required this.note});
 
   String _extractPlainText(String? content) {
-    if (content != null && content.startsWith('[{"insert":')) {
-      try {
-        final List<dynamic> json = jsonDecode(content);
-        return json.map((part) => part['insert'] ?? '').join().trim();
-      } catch (_) {}
-    }
-    return content ?? "";
+    return PreviewUtils.stripMarkdown(content);
   }
 
   @override
@@ -1217,8 +1205,14 @@ class _ModuleNotePreview extends StatelessWidget {
                             Divider(color: colorScheme.outline.withValues(alpha: 0.1)),
                             const SizedBox(height: 12),
                           ],
-                          NodaMarkdown(
-                            data: _extractPlainText(note.content),
+                          Text(
+                            _extractPlainText(note.content),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                              height: 1.5,
+                            ),
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
