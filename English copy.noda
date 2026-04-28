@@ -1,0 +1,19 @@
+{
+    "subject": {
+        "title" : "English Speaking",
+        "description": "Learn the fundamentals of English pronunciation and speaking.",
+        "icon": "🗣️",
+        "colorValue": 4283215696,
+        "nodes":[
+            {
+                 "name": "M1. Introduction to English",
+                 "nodes": [
+                    {
+                        "name": "Alphabet Pronunciation and Sounds",
+                        "note": "# Alphabet Pronunciation and Sounds\n\n## Consonants\nConsonants are letters of the alphabet that are not vowels.\nExamples: C, K, L, etc.\n\n## Vowels\nLetters A, E, I, O, U are vowels.\nVowels have both long and short sounds.\n\n## Short Vowel Sounds\nShort vowel sounds are different from the letter names.\nExample: 'a' in apple.\n\n## Long Vowel Sounds\nLong vowel sounds are similar to the letter names.\nExample: 'A' in ape.\n\n## Syllables\nSyllables are units of pronunciation that form the \"beats\" of a word.\n\n## Consonant Blends\nCombinations of two or more consonants where each sound is heard.\nExamples: 'bl' in black, 'str' in street.\n\n## Digraphs\nTwo letters that come together to make a single sound.\nExamples: 'sh' in ship, 'ch' in cherry.\n\n## Diphthongs\nWhen two vowels are combined in a single syllable to create a new sound.\nExamples: 'oi' in boy, 'ou' in house.\n\n## Magic E (Silent E / Bossy E)\nAn 'e' added to the end of a word changes a short vowel sound into a long vowel sound.\nExample: hop → hope.\n\n## Phonics\nA method of learning to read and pronounce words by understanding sounds of letters, combinations, and syllables.\n\n(Source: Module 1 Lesson 1) :contentReference[oaicite:0]{index=0}",
+                    },
+                 ]
+            }
+        ]
+    }
+}

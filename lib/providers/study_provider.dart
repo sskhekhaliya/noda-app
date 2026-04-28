@@ -172,7 +172,7 @@ class StudyNotifier extends StateNotifier<StudyState> {
         double weight = (c.downvotes + 1.0) / (c.upvotes + 1.0);
         
         // If card is NOT due yet, give it a very low priority (but not 0)
-        bool isDue = c.nextReviewAt == null || c.nextReviewAt!.isBefore(now);
+        bool isDue = c.nextReviewAt == null || (c.nextReviewAt?.isBefore(now) ?? true);
         if (!isDue) {
           weight *= 0.05; // 20x less likely to appear than a due card
         }
@@ -278,3 +278,5 @@ final studyProvider = StateNotifierProvider<StudyNotifier, StudyState>((ref) {
   final db = ref.watch(databaseProvider);
   return StudyNotifier(db);
 });
+
+

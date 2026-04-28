@@ -93,6 +93,12 @@ final navigationProvider =
   return NavigationNotifier();
 });
 
+/// Dedicated navigation provider for the Notes tab.
+final notesNavigationProvider =
+    StateNotifierProvider<NavigationNotifier, NavigationState>((ref) {
+  return NavigationNotifier();
+});
+
 /// Watches children of the current navigation parent.
 final currentChildrenProvider = StreamProvider<List<Node>>((ref) {
   final db = ref.watch(databaseProvider);
@@ -103,3 +109,35 @@ final currentChildrenProvider = StreamProvider<List<Node>>((ref) {
   }
   return db.watchChildrenOf(navState.currentParentId!);
 });
+
+/// Watches folders and notes (no cards) for the Notes tab navigation.
+/// Only keeps folders that contain at least one note.
+final notesChildrenProvider = StreamProvider<List<Node>>((ref) async* {
+  final db = ref.watch(databaseProvider);
+  final navState = ref.watch(notesNavigationProvider);
+
+  final Stream<List<Node>> baseStream = navState.currentParentId == null
+      ? db.watchRootNodes()
+      : db.watchChildrenOf(navState.currentParentId!);
+
+  await for (final nodes in baseStream) {
+    final filtered = <Node>[];
+    for (final node in nodes) {
+      if (node.type == 'NOTE') {
+        filtered.add(node);
+      } else if (node.type == 'FOLDER') {
+        final count = await db.countRecursiveNotes(node.id);
+        if (count > 0) {
+          filtered.add(node);
+        }
+      }
+    }
+    yield filtered;
+  }
+});
+
+enum ViewMode { list, grid }
+
+/// Controls the view mode (list/grid) in the Notes tab.
+final notesViewModeProvider = StateProvider<ViewMode>((ref) => ViewMode.list);
+

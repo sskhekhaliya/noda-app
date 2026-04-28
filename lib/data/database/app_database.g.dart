@@ -2100,3 +2100,4 @@ class $AppDatabaseManager {
   $$CardsTableTableManager get cards =>
       $$CardsTableTableManager(_db, _db.cards);
 }
+

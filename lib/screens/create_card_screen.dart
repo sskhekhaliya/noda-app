@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' show Value;
 
-import 'package:flutter_markdown/flutter_markdown.dart';
+import '../widgets/common/noda_markdown.dart';
 
 import '../core/theme/app_theme.dart';
 import '../core/theme/app_typography.dart';
@@ -172,7 +172,7 @@ class _CreateCardScreenState extends ConsumerState<CreateCardScreen> {
       constraints: const BoxConstraints(maxWidth: 160),
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
+        color: colorScheme.surfaceContainerHigh.withOpacity(0.5),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -187,7 +187,7 @@ class _CreateCardScreenState extends ConsumerState<CreateCardScreen> {
                   color: _currentIndex == 0 ? colorScheme.surface : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
                   boxShadow: _currentIndex == 0 ? [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))
+                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
                   ] : [],
                 ),
                 alignment: Alignment.center,
@@ -207,7 +207,7 @@ class _CreateCardScreenState extends ConsumerState<CreateCardScreen> {
                   color: _currentIndex == 1 ? colorScheme.surface : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
                   boxShadow: _currentIndex == 1 ? [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))
+                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
                   ] : [],
                 ),
                 alignment: Alignment.center,
@@ -244,10 +244,10 @@ class _CreateCardScreenState extends ConsumerState<CreateCardScreen> {
           decoration: BoxDecoration(
             color: isFront ? colorScheme.surfaceContainerLowest : colorScheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
+            border: Border.all(color: colorScheme.outline.withOpacity(0.1)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
+                color: Colors.black.withOpacity(0.08),
                 blurRadius: 24,
                 offset: const Offset(0, 12),
               ),
@@ -260,7 +260,7 @@ class _CreateCardScreenState extends ConsumerState<CreateCardScreen> {
               Text(
                 isFront ? 'QUESTION' : 'ANSWER',
                 style: AppTypography.caption(
-                  color: colorScheme.primary.withValues(alpha: 0.6),
+                  color: colorScheme.primary.withOpacity(0.6),
                 ),
               ),
               const SizedBox(height: 16),
@@ -277,7 +277,7 @@ class _CreateCardScreenState extends ConsumerState<CreateCardScreen> {
                         style: AppTypography.bodyLarge(),
                         decoration: InputDecoration(
                           hintText: hintText,
-                          hintStyle: TextStyle(color: colorScheme.outline.withValues(alpha: 0.4)),
+                          hintStyle: TextStyle(color: colorScheme.outline.withOpacity(0.4)),
                           border: InputBorder.none,
                           focusedBorder: InputBorder.none,
                           enabledBorder: InputBorder.none,
@@ -303,38 +303,14 @@ class _CreateCardScreenState extends ConsumerState<CreateCardScreen> {
     if (text.trim().isEmpty) {
       return Text(
         '*Empty*',
-        style: AppTypography.bodyMedium(color: colorScheme.outline.withValues(alpha: 0.5)),
+        style: AppTypography.bodyMedium(color: colorScheme.outline.withOpacity(0.5)),
       );
     }
 
-    return MarkdownBody(
+    return NodaMarkdown(
       data: text,
       selectable: true,
-      styleSheet: MarkdownStyleSheet(
-        p: AppTypography.bodyLarge(color: theme.extension<NodaThemeExtension>()!.textSecondary),
-        textAlign: WrapAlignment.start,
-        strong: const TextStyle(fontWeight: FontWeight.w700),
-        em: const TextStyle(fontStyle: FontStyle.italic),
-        del: const TextStyle(decoration: TextDecoration.lineThrough),
-        code: TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 12,
-          backgroundColor: colorScheme.surfaceContainerLow,
-        ),
-        codeblockPadding: const EdgeInsets.all(12),
-        codeblockDecoration: BoxDecoration(
-          color: colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        horizontalRuleDecoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: colorScheme.primary.withValues(alpha: 0.15),
-              width: 1.5,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
+

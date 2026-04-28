@@ -27,3 +27,4 @@ extension ResponsiveExtension on BuildContext {
   bool get isDesktop => layoutMode == LayoutMode.desktop;
   bool get isWideScreen => !isMobile;
 }
+

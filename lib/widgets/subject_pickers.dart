@@ -108,7 +108,7 @@ class IconPickerGrid extends StatelessWidget {
                 color: colorScheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  color: colorScheme.outlineVariant.withOpacity(0.5),
                   style: BorderStyle.solid,
                 ),
               ),
@@ -130,7 +130,7 @@ class IconPickerGrid extends StatelessWidget {
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: colorScheme.primary.withValues(alpha: 0.1),
+                        color: colorScheme.primary.withOpacity(0.1),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       )
@@ -243,7 +243,7 @@ class ColorPickerGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final noda = theme.extension<NodaThemeExtension>()!;
+    final noda = theme.extension<NodaThemeExtension>(); if (noda == null) return const SizedBox.shrink();
 
     return GridView.builder(
       shrinkWrap: true,
@@ -292,7 +292,7 @@ class ColorPickerGrid extends StatelessWidget {
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: (isGradient ? colorScheme.primary : Color(colorValue)).withValues(alpha: 0.3),
+                        color: (isGradient ? colorScheme.primary : Color(colorValue)).withOpacity(0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       )
@@ -308,3 +308,5 @@ class ColorPickerGrid extends StatelessWidget {
     );
   }
 }
+
+

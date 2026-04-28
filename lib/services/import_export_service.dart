@@ -66,7 +66,7 @@ class ImportExportService {
       'id': subjectId,
       'parentId': null,
       'type': 'FOLDER',
-      'title': subjectJson['title'] ?? subjectJson['name'] ?? 'Untitled',
+      'title': (subjectJson['title'] ?? "Untitled") ?? subjectJson['name'] ?? 'Untitled',
       'content': subjectJson['description'] ?? '',
       'icon': subjectJson['icon'],
       'colorValue': subjectJson['colorValue'],
@@ -324,7 +324,7 @@ class ImportExportService {
       );
     } else if (type == 'noda_subject') {
       final subjectJson = data['subject'] as Map<String, dynamic>;
-      final String title = subjectJson['title'];
+      final String title = (subjectJson['title'] ?? "Untitled");
 
       final existingSubjects = await db.searchNodes(title);
       Node? existingSubject;
@@ -401,7 +401,7 @@ class ImportExportService {
     } else if (type == 'noda_subject') {
       if (strategy == ImportStrategy.overwrite && analysis.existingSubject != null) {
         // Delete existing subject first
-        await db.deleteNodeRecursive(analysis.existingSubject!.id);
+        await db.deleteNodeRecursive((analysis.existingSubject?.id ?? ""));
         // Then insert exactly as is
         await _insertSubjectRaw(data);
       } else if (strategy == ImportStrategy.rename) {
@@ -565,3 +565,5 @@ class ImportExportService {
 final importExportServiceProvider = Provider<ImportExportService>((ref) {
   return ImportExportService(ref.watch(databaseProvider));
 });
+
+

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'dart:convert';
 
 /// State class for TTS playback and highlighting.
 class TtsState {
@@ -81,20 +82,29 @@ class TtsNotifier extends StateNotifier<TtsState> {
   }
 
   String _cleanMarkdownForSpeech(String raw) {
-    // 1. Replace Markdown markers with spaces to preserve character indices for highlighting
-    String cleaned = raw.replaceAllMapped(RegExp(r'([#*_~`\[\]\(\)])'), (match) {
-      return ' ' * match.group(0)!.length;
-    });
+    // 1. First extract plain text if it's Quill JSON
+    String text = raw;
+    if (raw.startsWith('[{"insert":')) {
+      try {
+        final List<dynamic> json = jsonDecode(raw);
+        text = json.map((part) => part['insert'] ?? '').join();
+      } catch (_) {}
+    }
 
-    // 2. Replace Emojis with spaces to silence them without breaking character offsets
-    // This covers most common emoji ranges in Unicode.
-    return cleaned.replaceAllMapped(
-      RegExp(
-        r'[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2702}-\u{27B0}\u{24C2}-\u{1F251}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}]',
-        unicode: true,
-      ),
-      (match) => ' ' * match.group(0)!.length,
-    );
+    // 2. Remove HTML tags
+    text = text.replaceAll(RegExp(r'<[^>]*>'), '');
+
+    // 3. Remove Markdown markers but keep the content inside
+    text = text
+        .replaceAll(RegExp(r'#+\s+'), '') // Headers
+        .replaceAllMapped(RegExp(r'(\*\*|__|==|~~|\*|_)(.*?)\1'), (m) => m[2]!) // Bold/Italic/etc
+        .replaceAllMapped(RegExp(r'!?\[(.*?)\]\(.*?\)?'), (m) => m[1]!) // Links/Images
+        .replaceAllMapped(RegExp(r'`{1,3}(.*?)`{1,3}'), (m) => m[1]!) // Code
+        .replaceAll(RegExp(r'^\s*([\*\-\+>]|\d+\.)\s+', multiLine: true), '') // Lists/Quotes
+        .replaceAll(RegExp(r'^\s*([=\-\*_]){3,}\s*$', multiLine: true), '') // HRs
+        .replaceAll(RegExp(r'[-=]>|<[-=]'), ' '); // Arrows
+
+    return text.trim();
   }
 
   Future<void> stop() async {

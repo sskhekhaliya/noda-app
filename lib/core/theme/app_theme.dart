@@ -46,10 +46,10 @@ class AppTheme {
         side: BorderSide.none,
       ),
     ),
-    dividerTheme: const DividerThemeData(
-      color: Colors.transparent, // No-Line rule
-      thickness: 0,
-      space: 12, // Default vertical spacing
+    dividerTheme: DividerThemeData(
+      color: AppColors.lightDivider.withOpacity(0.08),
+      thickness: 0.5,
+      space: 1,
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: AppColors.lightPrimaryAction,
@@ -78,7 +78,7 @@ class AppTheme {
     ),
     chipTheme: ChipThemeData(
       backgroundColor: AppColors.lightSurfaceAlt,
-      selectedColor: AppColors.lightSecondaryAction.withValues(alpha: 0.15),
+      selectedColor: AppColors.lightSecondaryAction.withOpacity(0.15),
       labelStyle: GoogleFonts.inter(
         fontSize: 12,
         fontWeight: FontWeight.w500,
@@ -99,7 +99,7 @@ class AppTheme {
         iconActive: AppColors.lightIconActive,
         iconInactive: AppColors.lightIconInactive,
         focusRing: AppColors.lightFocusRing,
-        glassBackground: Colors.white.withValues(alpha: 0.8),
+        glassBackground: Colors.white.withOpacity(0.8),
         glassBlur: 24,
       ),
     ],
@@ -144,10 +144,10 @@ class AppTheme {
         side: BorderSide.none,
       ),
     ),
-    dividerTheme: const DividerThemeData(
-      color: Colors.transparent,
-      thickness: 0,
-      space: 12,
+    dividerTheme: DividerThemeData(
+      color: AppColors.darkDivider.withOpacity(0.15),
+      thickness: 0.5,
+      space: 1,
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: AppColors.darkPrimaryAction,
@@ -176,7 +176,7 @@ class AppTheme {
     ),
     chipTheme: ChipThemeData(
       backgroundColor: AppColors.darkSurfaceAlt,
-      selectedColor: AppColors.darkSecondaryAction.withValues(alpha: 0.15),
+      selectedColor: AppColors.darkSecondaryAction.withOpacity(0.15),
       labelStyle: GoogleFonts.inter(
         fontSize: 12,
         fontWeight: FontWeight.w500,
@@ -197,7 +197,7 @@ class AppTheme {
         iconActive: AppColors.darkIconActive,
         iconInactive: AppColors.darkIconInactive,
         focusRing: AppColors.darkFocusRing,
-        glassBackground: const Color(0xFF1E293B).withValues(alpha: 0.7),
+        glassBackground: const Color(0xFF1E293B).withOpacity(0.7),
         glassBlur: 24,
       ),
     ],
@@ -323,3 +323,4 @@ double? lerpDouble(num? a, num? b, double t) {
   b ??= 0.0;
   return a + (b - a) * t;
 }
+

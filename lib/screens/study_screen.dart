@@ -5,7 +5,7 @@ import 'dart:math' as math;
 import '../core/theme/app_typography.dart';
 import '../core/theme/app_theme.dart';
 import '../providers/study_provider.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import '../widgets/common/noda_markdown.dart';
 
 class StudyScreen extends ConsumerStatefulWidget {
   const StudyScreen({super.key});
@@ -72,22 +72,22 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
                             },
                           )
                     : _SwipableCard(
-                        key: ValueKey(state.currentCard!.id),
+                        key: ValueKey((state.currentCard?.id ?? "")),
                         isFlipped: state.isFlipped,
                         exitTrigger: _exitTrigger,
-                        topicName: state.nodeTitles[state.currentCard!.parentId] ?? '',
-                        score: state.currentCard!.score,
+                        topicName: state.nodeTitles[(state.currentCard?.parentId ?? "")] ?? '',
+                        score: (state.currentCard?.score ?? 0),
                         front: _CardSide(
-                          content: state.currentCard!.front,
-                          topicName: state.nodeTitles[state.currentCard!.parentId] ?? '',
-                          score: state.currentCard!.score,
+                          content: (state.currentCard?.front ?? ""),
+                          topicName: state.nodeTitles[(state.currentCard?.parentId ?? "")] ?? '',
+                          score: (state.currentCard?.score ?? 0),
                           isBack: false,
                           color: colorScheme.surfaceContainerLowest,
                         ),
                         back: _CardSide(
-                          content: state.currentCard!.back,
-                          topicName: state.nodeTitles[state.currentCard!.parentId] ?? '',
-                          score: state.currentCard!.score,
+                          content: (state.currentCard?.back ?? ""),
+                          topicName: state.nodeTitles[(state.currentCard?.parentId ?? "")] ?? '',
+                          score: (state.currentCard?.score ?? 0),
                           isBack: true,
                           color: colorScheme.surfaceContainerHigh,
                         ),
@@ -147,7 +147,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
                     Text(
                       'Swipe Right to Master • Left to Repeat',
                       style: AppTypography.caption(
-                        color: Theme.of(context).extension<NodaThemeExtension>()!.textSecondary,
+                        color: Theme.of(context).extension<NodaThemeExtension>()?.textSecondary ?? Colors.grey,
                       ),
                     ),
                   ],
@@ -180,7 +180,7 @@ class _DoneScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: colorScheme.primary.withValues(alpha: 0.1),
+                color: colorScheme.primary.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.auto_awesome_rounded, size: 64, color: colorScheme.primary),
@@ -381,7 +381,7 @@ class _CardSide extends StatelessWidget {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -399,7 +399,7 @@ class _CardSide extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: colorScheme.primary.withValues(alpha: 0.1),
+                    color: colorScheme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -413,7 +413,7 @@ class _CardSide extends StatelessWidget {
                 Text(
                   score >= 50 ? 'MASTERED' : 'SCORE: $score',
                   style: AppTypography.caption(
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.4),
                   ).copyWith(
                     fontWeight: FontWeight.w300,
                     letterSpacing: 1.0,
@@ -427,20 +427,8 @@ class _CardSide extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(40, 80, 40, 40),
               child: SingleChildScrollView(
-                child: MarkdownBody(
+                child: NodaMarkdown(
                   data: content,
-                  styleSheet: MarkdownStyleSheet(
-                    p: AppTypography.bodyLarge().copyWith(
-                      fontSize: 20,
-                      height: 1.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    code: TextStyle(
-                      backgroundColor: colorScheme.surfaceContainerHighest,
-                      fontFamily: 'monospace',
-                      fontSize: 14,
-                    ),
-                  ),
                 ),
               ),
             ),
@@ -470,7 +458,7 @@ class _VoteButton extends StatelessWidget {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 20),
-        side: BorderSide(color: color.withValues(alpha: 0.3)),
+        side: BorderSide(color: color.withOpacity(0.3)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         foregroundColor: color,
       ),
@@ -485,5 +473,8 @@ class _VoteButton extends StatelessWidget {
     );
   }
 }
+
+
+
 
 

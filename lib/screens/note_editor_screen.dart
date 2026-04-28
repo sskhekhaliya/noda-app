@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' show Value;
-import 'package:flutter_markdown/flutter_markdown.dart';
+import '../widgets/common/noda_markdown.dart';
 
 import '../core/theme/app_theme.dart';
 import '../core/theme/app_typography.dart';
@@ -175,7 +175,8 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final noda = Theme.of(context).extension<NodaThemeExtension>()!;
+    final noda = Theme.of(context).extension<NodaThemeExtension>();
+    if (noda == null) return const SizedBox.shrink();
     final colorScheme = Theme.of(context).colorScheme;
     final ancestorPath = ref.watch(ancestorPathProvider(widget.nodeId));
 
@@ -252,8 +253,9 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
   }
 
   Widget _buildEditor() {
-    final noda = Theme.of(context).extension<NodaThemeExtension>()!;
+    final noda = Theme.of(context).extension<NodaThemeExtension>();
     final colorScheme = Theme.of(context).colorScheme;
+    if (noda == null) return const SizedBox.shrink();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -269,7 +271,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
             decoration: InputDecoration(
               hintText: 'Note title',
               hintStyle: AppTypography.noteTitle(
-                color: noda.textSecondary.withValues(alpha: 0.5),
+                color: noda.textSecondary.withOpacity(0.5),
               ),
               border: InputBorder.none,
               focusedBorder: InputBorder.none,
@@ -295,7 +297,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
             decoration: InputDecoration(
               hintText: 'Start writing your note...',
               hintStyle: AppTypography.bodyLarge(
-                color: noda.textSecondary.withValues(alpha: 0.5),
+                color: noda.textSecondary.withOpacity(0.5),
               ),
               border: InputBorder.none,
               focusedBorder: InputBorder.none,
@@ -330,63 +332,11 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Divider(color: colorScheme.primary.withValues(alpha: 0.1)),
+          Divider(color: colorScheme.primary.withOpacity(0.1)),
           const SizedBox(height: 24),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  width: 2,
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary,
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: MarkdownBody(
-                    data: _contentController.text,
-                    selectable: true,
-                    imageBuilder: (uri, title, alt) {
-                      if (uri.scheme == 'file') {
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.file(File(uri.toFilePath())),
-                        );
-                      }
-                      return Image.network(uri.toString());
-                    },
-                    styleSheet: MarkdownStyleSheet(
-                      p: AppTypography.bodySmall(
-                        color: Theme.of(context).extension<NodaThemeExtension>()!.textSecondary,
-                      ),
-                      strong: const TextStyle(fontWeight: FontWeight.w700),
-                      em: const TextStyle(fontStyle: FontStyle.italic),
-                      del: const TextStyle(decoration: TextDecoration.lineThrough),
-                      code: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 11,
-                        backgroundColor: colorScheme.surfaceContainerLow,
-                      ),
-                      codeblockPadding: const EdgeInsets.all(12),
-                      codeblockDecoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      horizontalRuleDecoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: colorScheme.primary.withValues(alpha: 0.15),
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          NodaMarkdown(
+            data: _contentController.text,
+            selectable: true,
           ),
         ],
       ),
@@ -399,7 +349,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        border: Border(top: BorderSide(color: colorScheme.outline.withValues(alpha: 0.1))),
+        border: Border(top: BorderSide(color: colorScheme.outline.withOpacity(0.1))),
       ),
       child: Row(
         children: [
@@ -419,3 +369,4 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     );
   }
 }
+

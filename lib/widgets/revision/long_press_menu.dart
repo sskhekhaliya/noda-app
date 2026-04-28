@@ -20,7 +20,7 @@ class LongPressMenu {
     required Node note,
     required String selectedText,
   }) {
-    final noda = Theme.of(context).extension<NodaThemeExtension>()!;
+    final noda = Theme.of(context).extension<NodaThemeExtension>(); if (noda == null) return;
     final colorScheme = Theme.of(context).colorScheme;
 
     showModalBottomSheet(
@@ -230,7 +230,7 @@ class _ActionTile extends StatelessWidget {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
+          color: color.withOpacity(0.12),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, color: color, size: 22),
@@ -245,3 +245,5 @@ class _ActionTile extends StatelessWidget {
     );
   }
 }
+
+

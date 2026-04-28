@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_quill/flutter_quill.dart' hide Node;
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' show Value;
 
@@ -9,6 +8,8 @@ import '../core/theme/app_theme.dart';
 import '../core/theme/app_typography.dart';
 import '../data/database/app_database.dart';
 import '../providers/database_provider.dart';
+import '../providers/nodes_provider.dart';
+import '../widgets/common/noda_markdown.dart';
 
 class KeepNoteScreen extends ConsumerStatefulWidget {
   final String parentId;
@@ -27,57 +28,64 @@ class KeepNoteScreen extends ConsumerStatefulWidget {
 }
 
 class _KeepNoteScreenState extends ConsumerState<KeepNoteScreen> {
-  late QuillController _controller;
+  late TextEditingController _titleController;
+  late TextEditingController _controller;
   bool _isSaving = false;
-  final ScrollController _scrollController = ScrollController();
+  bool _isPreviewMode = false;
+  bool _hasChanges = false;
   final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialContent != null && widget.initialContent!.isNotEmpty) {
+    String content = widget.initialContent ?? '';
+    
+    // Auto-convert JSON Delta to Plain Text if needed
+    if (content.startsWith('[{"insert":')) {
       try {
-        final doc = Document.fromJson(jsonDecode(widget.initialContent!));
-        _controller = QuillController(
-          document: doc,
-          selection: const TextSelection.collapsed(offset: 0),
-        );
-      } catch (e) {
-        // Fallback if not JSON (legacy markdown)
-        _controller = QuillController.basic();
-        _controller.document.insert(0, widget.initialContent!);
-      }
-    } else {
-      _controller = QuillController.basic();
+        final List<dynamic> json = jsonDecode(content);
+        content = json.map((part) => part['insert'] ?? '').join().trim();
+      } catch (_) {}
     }
     
-    _controller.addListener(_onStateChanged);
+    _titleController = TextEditingController();
+    _controller = TextEditingController(text: content);
+
+    if (widget.nodeId != null) {
+      ref.read(databaseProvider).getNodeById(widget.nodeId!).then((node) {
+        if (node != null && mounted) {
+          _titleController.text = node.title;
+        }
+      });
+    }
+
+    _controller.addListener(_onChanged);
+    _titleController.addListener(_onChanged);
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
+      if (!_isPreviewMode) _focusNode.requestFocus();
     });
   }
 
-  void _onStateChanged() {
-    if (mounted) {
-      setState(() {});
-    }
+  void _onChanged() {
+    if (!_hasChanges) setState(() => _hasChanges = true);
   }
 
   @override
   void dispose() {
-    _controller.removeListener(_onStateChanged);
+    _controller.removeListener(_onChanged);
+    _titleController.removeListener(_onChanged);
     _controller.dispose();
-    _scrollController.dispose();
+    _titleController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
   Future<void> _saveNote() async {
-    final content = jsonEncode(_controller.document.toDelta().toJson());
+    final title = _titleController.text.trim();
+    final content = _controller.text.trim();
     
-    // Don't save empty notes
-    if (_controller.document.isEmpty()) {
+    if (content.isEmpty && title.isEmpty && widget.nodeId == null) {
       Navigator.pop(context);
       return;
     }
@@ -90,6 +98,7 @@ class _KeepNoteScreenState extends ConsumerState<KeepNoteScreen> {
         await db.updateNode(
           widget.nodeId!,
           NodesCompanion(
+            title: Value(title),
             content: Value(content),
             updatedAt: Value(DateTime.now()),
           ),
@@ -99,14 +108,16 @@ class _KeepNoteScreenState extends ConsumerState<KeepNoteScreen> {
           NodesCompanion.insert(
             id: const Uuid().v4(),
             type: 'NOTE',
-            title: '', // Keep notes have no title
+            title: title,
             content: Value(content),
             parentId: Value(widget.parentId),
             createdAt: Value(DateTime.now()),
+            updatedAt: Value(DateTime.now()),
           ),
         );
       }
-      if (mounted) Navigator.pop(context);
+      setState(() => _hasChanges = false);
+      if (mounted) Navigator.pop(context, content);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -122,25 +133,8 @@ class _KeepNoteScreenState extends ConsumerState<KeepNoteScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-    final accent = colorScheme.primary;
     final bg = colorScheme.surface;
-    final textColor = colorScheme.onSurface;
-    final shadowColor = isDark ? Colors.black.withOpacity(0.5) : Colors.black.withOpacity(0.05);
-
-    final selectionStyle = _controller.getSelectionStyle();
-    final isBold = selectionStyle.attributes.containsKey(Attribute.bold.key);
-    final isItalic = selectionStyle.attributes.containsKey(Attribute.italic.key);
-    final isUnderline = selectionStyle.attributes.containsKey(Attribute.underline.key);
-    final isBullet = selectionStyle.attributes.containsKey(Attribute.list.key) && 
-                    selectionStyle.attributes[Attribute.list.key]?.value == 'bullet';
-    
-    int currentHeader = 0;
-    if (selectionStyle.attributes.containsKey(Attribute.header.key)) {
-      currentHeader = selectionStyle.attributes[Attribute.header.key]?.value ?? 0;
-    }
-
-    final isQuote = selectionStyle.attributes.containsKey(Attribute.blockQuote.key);
+    final accent = colorScheme.primary;
 
     return PopScope(
       onPopInvokedWithResult: (didPop, _) {
@@ -149,7 +143,6 @@ class _KeepNoteScreenState extends ConsumerState<KeepNoteScreen> {
       },
       child: Scaffold(
         backgroundColor: bg,
-        resizeToAvoidBottomInset: true,
         appBar: AppBar(
           backgroundColor: bg,
           elevation: 0,
@@ -158,6 +151,14 @@ class _KeepNoteScreenState extends ConsumerState<KeepNoteScreen> {
             onPressed: _saveNote,
           ),
           actions: [
+            IconButton(
+              icon: Icon(
+                _isPreviewMode ? Icons.edit_note_rounded : Icons.remove_red_eye_outlined,
+                color: _isPreviewMode ? accent : colorScheme.onSurfaceVariant,
+              ),
+              tooltip: _isPreviewMode ? 'Switch to Edit' : 'Switch to Preview',
+              onPressed: () => setState(() => _isPreviewMode = !_isPreviewMode),
+            ),
             if (_isSaving)
               const Center(
                 child: Padding(
@@ -171,9 +172,6 @@ class _KeepNoteScreenState extends ConsumerState<KeepNoteScreen> {
                 child: Center(
                   child: TextButton(
                     onPressed: _saveNote,
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    ),
                     child: Text(
                       'SAVE',
                       style: AppTypography.buttonText(color: accent).copyWith(
@@ -187,294 +185,72 @@ class _KeepNoteScreenState extends ConsumerState<KeepNoteScreen> {
               ),
           ],
         ),
-        body: Stack(
-          children: [
-            Column(
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(28, 8, 28, 100),
-                    child: QuillEditor.basic(
-                      controller: _controller,
-                      config: QuillEditorConfig(
-                        autoFocus: true,
-                        placeholder: 'Take a note...',
-                        expands: true,
-                        padding: EdgeInsets.zero,
-                        enableInteractiveSelection: true,
-                        customStyles: DefaultStyles(
-                          h1: DefaultTextBlockStyle(
-                            AppTypography.headingLarge(color: textColor),
-                            const HorizontalSpacing(0, 0),
-                            const VerticalSpacing(24, 8),
-                            const VerticalSpacing(0, 0),
-                            null,
-                          ),
-                          h2: DefaultTextBlockStyle(
-                            AppTypography.headingMedium(color: textColor),
-                            const HorizontalSpacing(0, 0),
-                            const VerticalSpacing(20, 8),
-                            const VerticalSpacing(0, 0),
-                            null,
-                          ),
-                          h3: DefaultTextBlockStyle(
-                            AppTypography.headingSmall(color: textColor),
-                            const HorizontalSpacing(0, 0),
-                            const VerticalSpacing(16, 6),
-                            const VerticalSpacing(0, 0),
-                            null,
-                          ),
-                          h4: DefaultTextBlockStyle(
-                            AppTypography.subtitle(color: textColor).copyWith(fontWeight: FontWeight.w600, fontSize: 16),
-                            const HorizontalSpacing(0, 0),
-                            const VerticalSpacing(14, 6),
-                            const VerticalSpacing(0, 0),
-                            null,
-                          ),
-                          h5: DefaultTextBlockStyle(
-                            AppTypography.subtitle(color: textColor).copyWith(fontWeight: FontWeight.w500, fontSize: 15),
-                            const HorizontalSpacing(0, 0),
-                            const VerticalSpacing(12, 4),
-                            const VerticalSpacing(0, 0),
-                            null,
-                          ),
-                          h6: DefaultTextBlockStyle(
-                            AppTypography.subtitle(color: textColor).copyWith(fontWeight: FontWeight.w500, fontSize: 14),
-                            const HorizontalSpacing(0, 0),
-                            const VerticalSpacing(10, 4),
-                            const VerticalSpacing(0, 0),
-                            null,
-                          ),
-                          paragraph: DefaultTextBlockStyle(
-                            AppTypography.bodyLarge(color: textColor.withOpacity(0.9)),
-                            const HorizontalSpacing(0, 0),
-                            const VerticalSpacing(0, 0),
-                            const VerticalSpacing(0, 0),
-                            null,
-                          ),
-                          quote: DefaultTextBlockStyle(
-                            AppTypography.bodyLarge(color: textColor.withOpacity(0.7)).copyWith(fontStyle: FontStyle.italic),
-                            const HorizontalSpacing(0, 0),
-                            const VerticalSpacing(12, 12),
-                            const VerticalSpacing(0, 0),
-                            BoxDecoration(
-                              border: Border(
-                                left: BorderSide(
-                                  width: 4,
-                                  color: accent.withOpacity(0.3),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      scrollController: _scrollController,
-                      focusNode: _focusNode,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            Positioned(
-              bottom: 20, 
-              left: 20,
-              right: 20,
-              child: Material(
-                type: MaterialType.transparency,
-                child: Hero(
-                  tag: 'keep_editor_toolbar',
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: shadowColor,
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                      border: Border.all(
-                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _headerPicker(
-                          currentHeader: currentHeader,
-                          onSelected: (level) {
-                            _controller.formatSelection(
-                              level == 0 ? Attribute.clone(Attribute.header, null) : Attribute.fromKeyValue('header', level),
-                            );
-                          },
-                          accent: accent,
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 20, child: VerticalDivider(width: 1, thickness: 1)),
-                        _toolbarItem(
-                          icon: Icons.format_quote_rounded, 
-                          onPressed: () => _toggleAttribute(Attribute.blockQuote),
-                          isSelected: isQuote,
-                          accent: accent,
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 20, child: VerticalDivider(width: 1, thickness: 1)),
-                        _toolbarItem(
-                          icon: Icons.format_bold_rounded, 
-                          onPressed: () => _toggleAttribute(Attribute.bold),
-                          isSelected: isBold,
-                          accent: accent,
-                          isDark: isDark,
-                        ),
-                        _toolbarItem(
-                          icon: Icons.format_italic_rounded, 
-                          onPressed: () => _toggleAttribute(Attribute.italic),
-                          isSelected: isItalic,
-                          accent: accent,
-                          isDark: isDark,
-                        ),
-                        _toolbarItem(
-                          icon: Icons.format_underlined_rounded, 
-                          onPressed: () => _toggleAttribute(Attribute.underline),
-                          isSelected: isUnderline,
-                          accent: accent,
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 20, child: VerticalDivider(width: 1, thickness: 1)),
-                        _toolbarItem(
-                          icon: Icons.format_list_bulleted_rounded, 
-                          onPressed: () => _toggleAttribute(Attribute.ul),
-                          isSelected: isBullet,
-                          accent: accent,
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 20, child: VerticalDivider(width: 1, thickness: 1)),
-                        _toolbarItem(
-                          icon: Icons.undo_rounded, 
-                          onPressed: _controller.undo,
-                          accent: accent,
-                          isDark: isDark,
-                        ),
-                        _toolbarItem(
-                          icon: Icons.redo_rounded, 
-                          onPressed: _controller.redo,
-                          accent: accent,
-                          isDark: isDark,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+        body: _isPreviewMode ? _buildPreview() : _buildEditor(),
       ),
     );
   }
 
-  void _toggleAttribute(Attribute attribute) {
-    final style = _controller.getSelectionStyle();
-    if (style.attributes.containsKey(attribute.key)) {
-      _controller.formatSelection(Attribute.clone(attribute, null));
-    } else {
-      _controller.formatSelection(attribute);
-    }
-  }
-
-  Widget _headerPicker({
-    required int currentHeader,
-    required Function(int) onSelected,
-    required Color accent,
-    required bool isDark,
-  }) {
-    return PopupMenuButton<int>(
-      onSelected: onSelected,
-      offset: const Offset(0, -280),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: isDark ? const Color(0xFF1E293B) : Colors.white,
-      itemBuilder: (context) => [
-        _buildPopupItem(0, 'Normal', currentHeader == 0, accent, isDark),
-        _buildPopupItem(1, 'Heading 1', currentHeader == 1, accent, isDark),
-        _buildPopupItem(2, 'Heading 2', currentHeader == 2, accent, isDark),
-        _buildPopupItem(3, 'Heading 3', currentHeader == 3, accent, isDark),
-      ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: currentHeader > 0 ? accent.withOpacity(0.12) : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.format_size_rounded,
-              size: 20,
-              color: currentHeader > 0 ? accent : (isDark ? Colors.white70 : Colors.black54),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              currentHeader == 0 ? 'T' : 'H$currentHeader',
-              style: AppTypography.chipLabel(
-                color: currentHeader > 0 ? accent : (isDark ? Colors.white70 : Colors.black54),
-              ).copyWith(
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  PopupMenuItem<int> _buildPopupItem(int value, String label, bool isSelected, Color accent, bool isDark) {
-    return PopupMenuItem<int>(
-      value: value,
-      child: Row(
+  Widget _buildEditor() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(28, 8, 28, 20),
+      child: Column(
         children: [
-          Text(
-            label,
-            style: AppTypography.bodyMedium(
-              color: isSelected ? accent : (isDark ? Colors.white70 : Colors.black87),
-            ).copyWith(
-              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+          TextField(
+            controller: _titleController,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: colorScheme.onSurface,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Title',
+              hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.3)),
+              filled: false,
+              border: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
+            textCapitalization: TextCapitalization.sentences,
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              maxLines: null,
+              expands: true,
+              style: AppTypography.bodyLarge(color: colorScheme.onSurface).copyWith(
+                height: 1.6,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Take a note...',
+                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.5)),
+                filled: false,
+                border: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+              textCapitalization: TextCapitalization.sentences,
             ),
           ),
-          if (isSelected) ...[
-            const Spacer(),
-            Icon(Icons.check_rounded, color: accent, size: 18),
-          ],
         ],
       ),
     );
   }
 
-  Widget _toolbarItem({
-    required IconData icon,
-    required VoidCallback onPressed,
-    bool isSelected = false,
-    required Color accent,
-    required bool isDark,
-  }) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? accent.withOpacity(0.12) : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          icon,
-          size: 20,
-          color: isSelected ? accent : (isDark ? Colors.white70 : Colors.black54),
-        ),
+  Widget _buildPreview() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(28, 24, 28, 100),
+      child: NodaMarkdown(
+        data: _controller.text.isEmpty ? '*Empty note*' : _controller.text,
+        selectable: true,
       ),
     );
   }
 }
+
+
+

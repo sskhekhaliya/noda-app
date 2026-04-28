@@ -185,8 +185,8 @@ class _PickerContentState extends State<_PickerContent> {
           'No modules found.',
           style: AppTypography.bodyMedium(
             color: Theme.of(context)
-                .extension<NodaThemeExtension>()!
-                .textSecondary,
+                .extension<NodaThemeExtension>()
+                ?.textSecondary,
           ),
         ),
       );
@@ -255,7 +255,7 @@ class _FolderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final noda = Theme.of(context).extension<NodaThemeExtension>()!;
+    final noda = Theme.of(context).extension<NodaThemeExtension>(); if (noda == null) return const SizedBox.shrink();
     final isFolder = node.type == 'FOLDER';
 
     return InkWell(
@@ -312,3 +312,7 @@ class _FolderTile extends StatelessWidget {
     );
   }
 }
+
+
+
+

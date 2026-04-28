@@ -106,6 +106,12 @@ class AppDatabase extends _$AppDatabase {
         .getSingleOrNull();
   }
 
+  /// Get a single node by title (case-insensitive).
+  Future<Node?> getNodeByTitle(String title) {
+    return (select(nodes)..where((n) => n.title.lower().equals(title.toLowerCase())))
+        .getSingleOrNull();
+  }
+
   /// Watch a single node.
   Stream<Node?> watchNodeById(String nodeId) {
     return (select(nodes)..where((n) => n.id.equals(nodeId)))
@@ -205,9 +211,9 @@ class AppDatabase extends _$AppDatabase {
     
     // Once-per-day logic
     bool wasReviewedToday = card.lastReviewAt != null && 
-        card.lastReviewAt!.year == now.year &&
-        card.lastReviewAt!.month == now.month &&
-        card.lastReviewAt!.day == now.day;
+        card.lastReviewAt?.year == now.year &&
+        card.lastReviewAt?.month == now.month &&
+        card.lastReviewAt?.day == now.day;
 
     int newScore = card.score;
     if (!wasReviewedToday) {
@@ -357,9 +363,9 @@ class AppDatabase extends _$AppDatabase {
     final result = await customSelect(
       '''
       WITH RECURSIVE descendants AS (
-        SELECT id FROM nodes WHERE id = ?
+        SELECT id, type FROM nodes WHERE id = ?
         UNION ALL
-        SELECT n.id FROM nodes n
+        SELECT n.id, n.type FROM nodes n
         INNER JOIN descendants d ON n.parent_id = d.id
       )
       SELECT COUNT(*) as cnt FROM descendants WHERE type = 'NOTE'
@@ -470,6 +476,16 @@ class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
+  /// Watch all notes in the database.
+  Stream<List<Node>> watchAllNotes() {
+    return (select(nodes)..where((n) => n.type.equals('NOTE'))).watch();
+  }
+
+  /// Watch all cards in the database.
+  Stream<List<Card>> watchAllCards() {
+    return select(cards).watch();
+  }
+
   /// Attach a node to a new parent (re-parent).
   Future<void> attachToParent(String nodeId, String newParentId) {
     return (update(nodes)..where((n) => n.id.equals(nodeId))).write(
@@ -559,4 +575,5 @@ LazyDatabase _openConnection() {
     return NativeDatabase.createInBackground(file);
   });
 }
+
 

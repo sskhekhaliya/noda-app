@@ -29,10 +29,10 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
   void initState() {
     super.initState();
     if (widget.editingNode != null) {
-      _nameController.text = widget.editingNode!.title;
-      _descriptionController.text = widget.editingNode!.content ?? '';
-      _selectedIcon = widget.editingNode!.icon ?? '🧬';
-      _selectedColor = widget.editingNode!.colorValue ?? 0xFF004F56;
+      _nameController.text = (widget.editingNode?.title ?? "");
+      _descriptionController.text = widget.editingNode?.content ?? '';
+      _selectedIcon = widget.editingNode?.icon ?? '🧬';
+      _selectedColor = widget.editingNode?.colorValue ?? 0xFF004F56;
     }
   }
 
@@ -57,7 +57,7 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
     try {
       final db = ref.read(databaseProvider);
       
-      final exists = await db.doesSubjectExist(title, excludeId: widget.editingNode?.id);
+      final exists = await db.doesSubjectExist(title, excludeId: (widget.editingNode?.id ?? ""));
       if (exists) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -71,7 +71,7 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
 
       if (widget.editingNode != null) {
         await db.updateNode(
-          widget.editingNode!.id,
+          (widget.editingNode?.id ?? ""),
           NodesCompanion(
             title: Value(title),
             content: Value(_descriptionController.text.trim()),
@@ -109,7 +109,7 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final noda = theme.extension<NodaThemeExtension>()!;
+    final noda = theme.extension<NodaThemeExtension>(); if (noda == null) return const SizedBox.shrink();
 
     return Scaffold(
       appBar: AppBar(
@@ -135,7 +135,7 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
             Text(
               'Knowledge Architecture'.toUpperCase(),
               style: theme.textTheme.labelMedium?.copyWith(
-                color: colorScheme.secondary.withValues(alpha: 0.7),
+                color: colorScheme.secondary.withOpacity(0.7),
                 fontWeight: FontWeight.w700,
                 letterSpacing: 2.0,
               ),
@@ -161,11 +161,11 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: Color(_selectedColor).withValues(alpha: 0.25),
+                    color: Color(_selectedColor).withOpacity(0.25),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: colorScheme.onSurface.withValues(alpha: 0.05),
+                        color: colorScheme.onSurface.withOpacity(0.05),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       )
@@ -193,7 +193,7 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
                 decoration: InputDecoration(
                   hintText: 'Untitled Subject',
                   hintStyle: theme.textTheme.headlineLarge?.copyWith(
-                    color: colorScheme.outline.withValues(alpha: 0.3),
+                    color: colorScheme.outline.withOpacity(0.3),
                     fontWeight: FontWeight.w800,
                   ),
                   border: InputBorder.none,
@@ -329,7 +329,7 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
                             : 'Description attached (Rich Text)',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: _descriptionController.text.isEmpty
-                              ? colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
+                              ? colorScheme.onSurfaceVariant.withOpacity(0.5)
                               : colorScheme.onSurface,
                         ),
                       ),
@@ -365,7 +365,7 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
                       gradient: LinearGradient(
                         colors: [
                           colorScheme.surface,
-                          colorScheme.surface.withValues(alpha: 0.0),
+                          colorScheme.surface.withOpacity(0.0),
                         ],
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
@@ -401,7 +401,7 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
           borderRadius: BorderRadius.circular(100),
           boxShadow: [
             BoxShadow(
-              color: colorScheme.onSurface.withValues(alpha: 0.08),
+              color: colorScheme.onSurface.withOpacity(0.08),
               blurRadius: 30,
               offset: const Offset(0, 10),
             )
@@ -437,7 +437,7 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
                         borderRadius: BorderRadius.circular(100),
                         boxShadow: [
                           BoxShadow(
-                            color: colorScheme.primary.withValues(alpha: 0.3),
+                            color: colorScheme.primary.withOpacity(0.3),
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           )
@@ -481,3 +481,6 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
     );
   }
 }
+
+
+

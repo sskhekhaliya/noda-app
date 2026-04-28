@@ -76,3 +76,4 @@ class AppColors {
     colors: [Color(0xFF0D9488), Color(0xFF0369A1)],
   );
 }
+

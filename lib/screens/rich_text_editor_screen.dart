@@ -430,3 +430,4 @@ class _RichTextEditorScreenState extends State<RichTextEditorScreen> {
     );
   }
 }
+

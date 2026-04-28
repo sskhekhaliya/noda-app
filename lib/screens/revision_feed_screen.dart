@@ -115,7 +115,7 @@ class _TopOverlay extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final noda = theme.extension<NodaThemeExtension>()!;
+    final noda = theme.extension<NodaThemeExtension>(); if (noda == null) return const SizedBox.shrink();
     final colorScheme = theme.colorScheme;
     final db = ref.watch(databaseProvider);
 
@@ -174,7 +174,7 @@ class _TopOverlay extends ConsumerWidget {
                         if (revision.currentNote != null)
                           FutureBuilder<List<Node>>(
                             future: db
-                                .getAncestorPath(revision.currentNote!.id),
+                                .getAncestorPath((revision.currentNote?.id ?? "")),
                             builder: (context, snap) {
                               if (!snap.hasData) return const SizedBox.shrink();
                               final path = snap.data!;
@@ -233,7 +233,7 @@ class _BottomProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final noda = theme.extension<NodaThemeExtension>()!;
+    final noda = theme.extension<NodaThemeExtension>(); if (noda == null) return const SizedBox.shrink();
     final colorScheme = theme.colorScheme;
 
     return Container(
@@ -243,7 +243,7 @@ class _BottomProgressBar extends StatelessWidget {
           end: Alignment.topCenter,
           colors: [
             theme.scaffoldBackgroundColor,
-            theme.scaffoldBackgroundColor.withValues(alpha: 0),
+            theme.scaffoldBackgroundColor.withOpacity(0),
           ],
         ),
       ),
@@ -268,7 +268,7 @@ class _BottomProgressBar extends StatelessWidget {
                             gradient: noda.brandGradient,
                             boxShadow: [
                               BoxShadow(
-                                color: colorScheme.primary.withValues(alpha: 0.3),
+                                color: colorScheme.primary.withOpacity(0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 0),
                               ),
@@ -295,3 +295,7 @@ class _BottomProgressBar extends StatelessWidget {
     );
   }
 }
+
+
+
+

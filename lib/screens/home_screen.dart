@@ -25,6 +25,7 @@ import '../services/import_export_service.dart';
 import '../widgets/import_conflict_dialog.dart';
 import 'study_screen.dart';
 import '../providers/study_provider.dart';
+import 'notes_library_screen.dart';
 
 /// Main home screen showing root-level subjects.
 class HomeScreen extends ConsumerStatefulWidget {
@@ -54,7 +55,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _fabScale = CurvedAnimation(parent: _fabController, curve: Curves.elasticOut);
     
     _searchController.addListener(() {
-      if (_debounce?.isActive ?? false) _debounce!.cancel();
+      if (_debounce?.isActive ?? false) _debounce?.cancel();
       _debounce = Timer(const Duration(milliseconds: 200), () {
         if (mounted) {
           ref.read(homeSearchQueryProvider.notifier).state = _searchController.text;
@@ -63,8 +64,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     });
 
     // Listen to media sharing incoming intents
-    _intentSubscription = ReceiveSharingIntent.instance.getMediaStream().listen((List<SharedMediaFile> value) {
-      if (value.isNotEmpty) {
+    _intentSubscription = ReceiveSharingIntent.instance.getMediaStream().listen((value) {
+      if (value != null && value.isNotEmpty) {
         _processIncomingFilePath(value.first.path);
       }
     }, onError: (err) {
@@ -72,13 +73,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     });
 
     // Get the media sharing coming from outside the app while the app is closed.
-    ReceiveSharingIntent.instance.getInitialMedia().then((List<SharedMediaFile> value) {
-      if (value.isNotEmpty) {
+    ReceiveSharingIntent.instance.getInitialMedia().then((value) {
+      if (value != null && value.isNotEmpty) {
         // Delay slightly to ensure widget is mounted
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) _processIncomingFilePath(value.first.path);
         });
       }
+    }).catchError((e) {
+      debugPrint("getInitialMedia error: $e");
     });
   }
 
@@ -96,12 +99,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final rootNodes = ref.watch(rootNodesProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final noda = theme.extension<NodaThemeExtension>()!;
+    final noda = theme.extension<NodaThemeExtension>();
+    if (noda == null) return const SizedBox.shrink();
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       key: _scaffoldKey,
-      drawer: _SideDrawer(onImport: _handleImport),
+      drawer: _SideDrawer(
+        onImport: _handleImport,
+        onImportJson: _showJsonImportDialog,
+      ),
       appBar: AppBar(
         leading: IconButton(
           icon: Icon(
@@ -144,12 +151,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 await service.exportFullBackupAsNpack();
               } else if (value == 'import') {
                 _handleImport();
+              } else if (value == 'import_json') {
+                _showJsonImportDialog();
               }
             },
             itemBuilder: (context) => [
               const PopupMenuItem(
                 value: 'import',
                 child: Text('Import File (.noda / .npack)'),
+              ),
+              const PopupMenuItem(
+                value: 'import_json',
+                child: Text('Import JSON Text'),
               ),
               const PopupMenuItem(
                 value: 'export_backup',
@@ -169,13 +182,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ? CustomScrollView(
                     slivers: _buildLibrarySlivers(ref),
                   )
-                : _EmptyTabScreen(
-                    title: _currentIndex == 1
-                        ? 'Search'
-                        : _currentIndex == 2
-                            ? 'Focus'
-                            : 'Settings',
-                  ),
+                : _currentIndex == 1
+                    ? _EmptyTabScreen(title: 'Search')
+                    : _currentIndex == 2
+                        ? _EmptyTabScreen(title: 'Focus')
+                        : const NotesLibraryScreen(),
             // Floating Bottom Navigation Bar
             Positioned(
               bottom: 0,
@@ -200,7 +211,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: colorScheme.primary.withValues(alpha: 0.3),
+                        color: colorScheme.primary.withOpacity(0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -283,7 +294,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       );
 
       if (result != null && result.files.single.path != null) {
-        await _processIncomingFilePath(result.files.single.path!);
+        final file = File(result.files.single.path!);
+        final jsonStr = await file.readAsString();
+        await _processJsonStr(jsonStr);
       }
     } catch (e) {
       if (mounted) {
@@ -291,6 +304,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           SnackBar(content: Text('Error selecting file: $e')),
         );
       }
+    }
+  }
+
+  Future<void> _showJsonImportDialog() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import from JSON'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Paste your Noda JSON content here:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              maxLines: 8,
+              decoration: InputDecoration(
+                hintText: '{ "subject": { ... } }',
+                fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
+              ),
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      await _processJsonStr(result);
     }
   }
 
@@ -305,7 +356,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
       final file = File(path);
       final jsonStr = await file.readAsString();
+      await _processJsonStr(jsonStr);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error processing shared file: $e')),
+        );
+      }
+    }
+  }
 
+  Future<void> _processJsonStr(String jsonStr) async {
+    try {
       final service = ref.read(importExportServiceProvider);
       final analysis = await service.analyzeImport(jsonStr);
 
@@ -438,7 +500,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           icon: Icons.shuffle_rounded,
                           label: 'Shuffle',
                           isGradient: false,
-                          onTap: () => _startRevision(context, rootNodes.value!.first, RevisionMode.shuffle),
+                          onTap: () {
+                            if (rootNodes.value?.isNotEmpty ?? false) {
+                              _startRevision(context, rootNodes.value!.first, RevisionMode.shuffle);
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -465,7 +531,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       icon: Icons.shuffle_rounded,
                       label: 'Shuffle',
                       isGradient: false,
-                      onTap: () => _startRevision(context, rootNodes.value!.first, RevisionMode.shuffle),
+                      onTap: () {
+                        if (rootNodes.value?.isNotEmpty ?? false) {
+                          _startRevision(context, rootNodes.value!.first, RevisionMode.shuffle);
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -602,7 +672,8 @@ class _SubjectList extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isWide = context.isWideScreen;
-    final noda = theme.extension<NodaThemeExtension>()!;
+    final noda = theme.extension<NodaThemeExtension>();
+    if (noda == null) return const SizedBox.shrink();
 
     return ListView(
       padding: EdgeInsets.fromLTRB(
@@ -784,7 +855,8 @@ class _MasterAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final noda = Theme.of(context).extension<NodaThemeExtension>()!;
+    final noda = Theme.of(context).extension<NodaThemeExtension>();
+    if (noda == null) return const SizedBox.shrink();
     final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
@@ -801,7 +873,7 @@ class _MasterAction extends StatelessWidget {
             boxShadow: isGradient
                 ? [
                     BoxShadow(
-                      color: colorScheme.primary.withValues(alpha: 0.3),
+                      color: colorScheme.primary.withOpacity(0.3),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     ),
@@ -846,7 +918,7 @@ class _CreateNewCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: colorScheme.outline.withValues(alpha: 0.3),
+            color: colorScheme.outline.withOpacity(0.3),
             width: 2,
             style: BorderStyle.solid, // Dash effect limited in standard Flutter
           ),
@@ -933,7 +1005,8 @@ class _SubjectCardState extends ConsumerState<_SubjectCard>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final noda = theme.extension<NodaThemeExtension>()!;
+    final noda = theme.extension<NodaThemeExtension>();
+    if (noda == null) return const SizedBox.shrink();
     final colorScheme = theme.colorScheme;
     final cardCount = ref.watch(recursiveCardCountProvider(widget.node.id));
 
@@ -958,7 +1031,7 @@ class _SubjectCardState extends ConsumerState<_SubjectCard>
               // Background Highlight on Hover (simulated for touch)
               Positioned.fill(
                 child: Ink(
-                  color: colorScheme.primary.withValues(alpha: 0.02),
+                  color: colorScheme.primary.withOpacity(0.02),
                 ),
               ),
 
@@ -979,7 +1052,7 @@ class _SubjectCardState extends ConsumerState<_SubjectCard>
                             color: (widget.node.colorValue != null
                                     ? Color(widget.node.colorValue!)
                                     : colorScheme.primary)
-                                .withValues(alpha: 0.25),
+                                .withOpacity(0.25),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Center(
@@ -1019,7 +1092,7 @@ class _SubjectCardState extends ConsumerState<_SubjectCard>
                                 Text(
                                   widget.node.content!,
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                                    color: colorScheme.onSurfaceVariant.withOpacity(0.8),
                                     height: 1.3,
                                   ),
                                   maxLines: 2,
@@ -1196,7 +1269,7 @@ class _IconButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(100),
         child: InkWell(
           onTap: onTap,
@@ -1231,7 +1304,7 @@ class _EmptyTabScreen extends StatelessWidget {
                     ? Icons.timer_outlined
                     : Icons.settings_outlined,
             size: 64,
-            color: colorScheme.primary.withValues(alpha: 0.2),
+            color: colorScheme.primary.withOpacity(0.2),
           ),
           const SizedBox(height: 16),
           Text(
@@ -1262,12 +1335,12 @@ class _BottomNavBar extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(24, 0, 24, 20),
       padding: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
-        color: colorScheme.surface.withValues(alpha: 0.8),
+        color: colorScheme.surface.withOpacity(0.8),
         borderRadius: BorderRadius.circular(100),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: Colors.black.withOpacity(0.2),
             blurRadius: 30,
             offset: const Offset(0, 10),
           ),
@@ -1297,8 +1370,8 @@ class _BottomNavBar extends StatelessWidget {
               onTap: () => onTap(2),
             ),
             _NavBarItem(
-              icon: currentIndex == 3 ? Icons.settings : Icons.settings_outlined,
-              label: 'Settings',
+              icon: currentIndex == 3 ? Icons.book : Icons.book_outlined,
+              label: 'Notes',
               isSelected: currentIndex == 3,
               onTap: () => onTap(3),
             ),
@@ -1338,7 +1411,7 @@ class _NavBarItem extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: isSelected ? colorScheme.primary.withValues(alpha: 0.1) : Colors.transparent,
+                color: isSelected ? colorScheme.primary.withOpacity(0.1) : Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
@@ -1364,7 +1437,11 @@ class _NavBarItem extends StatelessWidget {
 
 class _SideDrawer extends ConsumerWidget {
   final VoidCallback onImport;
-  const _SideDrawer({required this.onImport});
+  final VoidCallback onImportJson;
+  const _SideDrawer({
+    required this.onImport,
+    required this.onImportJson,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1420,11 +1497,31 @@ class _SideDrawer extends ConsumerWidget {
             },
           ),
           ListTile(
+            leading: const Icon(Icons.code_rounded),
+            title: const Text('Import JSON Text'),
+            onTap: () {
+              Navigator.pop(context);
+              onImportJson();
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.download_for_offline_rounded),
-            title: const Text('Import Backup'),
-            onTap: () async {
+            title: const Text('Import File'),
+            onTap: () {
               Navigator.pop(context); // Close drawer
               onImport();
+            },
+          ),
+          const Divider(indent: 24, endIndent: 24),
+          ListTile(
+            leading: const Icon(Icons.settings_outlined),
+            title: const Text('Settings'),
+            onTap: () {
+              // TODO: Navigate to actual SettingsScreen when implemented
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Settings screen coming soon')),
+              );
             },
           ),
           const Spacer(),
@@ -1450,7 +1547,8 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final noda = theme.extension<NodaThemeExtension>()!;
+    final noda = theme.extension<NodaThemeExtension>();
+    if (noda == null) return const SizedBox.shrink();
 
     return Center(
       child: Padding(
@@ -1504,7 +1602,8 @@ class _StudyStats extends ConsumerWidget {
     final stats = ref.watch(statsProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final noda = theme.extension<NodaThemeExtension>()!;
+    final noda = theme.extension<NodaThemeExtension>();
+    if (noda == null) return const SizedBox.shrink();
 
     return stats.when(
       data: (data) => Container(
@@ -1513,7 +1612,7 @@ class _StudyStats extends ConsumerWidget {
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
+          border: Border.all(color: colorScheme.outline.withOpacity(0.1)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -1563,7 +1662,8 @@ class _StatItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final noda = theme.extension<NodaThemeExtension>()!;
+    final noda = theme.extension<NodaThemeExtension>();
+    if (noda == null) return const SizedBox.shrink();
 
     return Column(
       children: [
@@ -1601,7 +1701,8 @@ class _StatDivider extends StatelessWidget {
     return Container(
       height: 40,
       width: 1,
-      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+      color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
     );
   }
 }
+

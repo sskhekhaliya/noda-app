@@ -174,7 +174,7 @@ class _CreateNodeScreenState extends ConsumerState<CreateNodeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        border: Border(top: BorderSide(color: colorScheme.outline.withValues(alpha: 0.1))),
+        border: Border(top: BorderSide(color: colorScheme.outline.withOpacity(0.1))),
       ),
       child: Row(
         children: [
@@ -248,7 +248,7 @@ class _CreateNodeScreenState extends ConsumerState<CreateNodeScreen> {
                     maxLines: null,
                     decoration: InputDecoration(
                       hintText: 'Title',
-                      hintStyle: TextStyle(color: colorScheme.outline.withValues(alpha: 0.3)),
+                      hintStyle: TextStyle(color: colorScheme.outline.withOpacity(0.3)),
                       border: InputBorder.none,
                       focusedBorder: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -265,7 +265,7 @@ class _CreateNodeScreenState extends ConsumerState<CreateNodeScreen> {
                     maxLines: null,
                     decoration: InputDecoration(
                       hintText: 'Type your thoughts here...',
-                      hintStyle: TextStyle(color: colorScheme.outline.withValues(alpha: 0.3)),
+                      hintStyle: TextStyle(color: colorScheme.outline.withOpacity(0.3)),
                       border: InputBorder.none,
                       focusedBorder: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -302,7 +302,7 @@ class _CreateNodeScreenState extends ConsumerState<CreateNodeScreen> {
           Container(
             height: 1,
             width: 40,
-            color: colorScheme.primary.withValues(alpha: 0.5),
+            color: colorScheme.primary.withOpacity(0.5),
           ),
           const SizedBox(height: 40),
           if (_contentController.text.isNotEmpty) ...[
@@ -333,7 +333,7 @@ class _CreateNodeScreenState extends ConsumerState<CreateNodeScreen> {
                       },
                       styleSheet: MarkdownStyleSheet(
                         p: AppTypography.bodySmall(
-                          color: Theme.of(context).extension<NodaThemeExtension>()!.textSecondary,
+                          color: Theme.of(context).extension<NodaThemeExtension>()?.textSecondary,
                         ),
                         strong: const TextStyle(fontWeight: FontWeight.w700),
                         em: const TextStyle(fontStyle: FontStyle.italic),
@@ -351,7 +351,7 @@ class _CreateNodeScreenState extends ConsumerState<CreateNodeScreen> {
                         horizontalRuleDecoration: BoxDecoration(
                           border: Border(
                             bottom: BorderSide(
-                              color: colorScheme.primary.withValues(alpha: 0.15),
+                              color: colorScheme.primary.withOpacity(0.15),
                               width: 1.5,
                             ),
                           ),
@@ -365,7 +365,7 @@ class _CreateNodeScreenState extends ConsumerState<CreateNodeScreen> {
           ] else ...[
              Text(
                '*No content to preview*',
-               style: AppTypography.bodySmall(color: colorScheme.outline.withValues(alpha: 0.5)),
+               style: AppTypography.bodySmall(color: colorScheme.outline.withOpacity(0.5)),
              ),
           ],
           const SizedBox(height: 60),
@@ -394,7 +394,7 @@ class _ToggleAction extends StatelessWidget {
           borderRadius: BorderRadius.circular(6),
           boxShadow: isSelected ? [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             )
@@ -405,10 +405,12 @@ class _ToggleAction extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? colorScheme.primary : colorScheme.onSurface.withValues(alpha: 0.6),
+            color: isSelected ? colorScheme.primary : colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
       ),
     );
   }
 }
+
+

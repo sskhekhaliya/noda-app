@@ -29,3 +29,4 @@ class SelectionNotifier extends StateNotifier<Set<String>> {
   bool get hasSelection => state.isNotEmpty;
   int get count => state.length;
 }
+

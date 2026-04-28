@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:convert';
 import 'package:flutter_quill/flutter_quill.dart' hide Node;
-import 'package:flutter_markdown/flutter_markdown.dart';
+import '../widgets/common/noda_markdown.dart';
 import 'package:drift/drift.dart' show Value;
 
 import '../core/theme/app_theme.dart';
@@ -15,7 +15,6 @@ import '../providers/database_provider.dart';
 
 import '../providers/revision_provider.dart';
 import '../widgets/hierarchy/breadcrumb_bar.dart';
-import '../widgets/hierarchy/node_tile.dart';
 import '../widgets/hierarchy/revision_buttons.dart';
 import '../providers/selection_provider.dart';
 import 'note_editor_screen.dart';
@@ -104,86 +103,80 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
     final selection = ref.watch(selectionProvider);
     final isSelectionMode = selection.isNotEmpty;
 
+    final nodesAsync = ref.watch(childrenOfProvider(_currentParentId));
+    final nodes = nodesAsync.valueOrNull ?? [];
+
     return PopScope(
       canPop: _navStack.isEmpty && !isSelectionMode,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) {
-          if (isSelectionMode) {
-            ref.read(selectionProvider.notifier).clear();
-          } else {
-            _navigateUp();
-          }
+        if (didPop) return;
+
+        if (isSelectionMode) {
+          ref.read(selectionProvider.notifier).clear();
+        } else {
+          _navigateUp();
         }
       },
       child: Scaffold(
-        appBar: isSelectionMode ? _buildSelectionAppBar(selection.length) : _buildStandardAppBar(),
+        appBar: isSelectionMode ? _buildSelectionAppBar(selection.length) : _buildStandardAppBar(nodes),
         body: Consumer(
           builder: (context, ref, child) {
             final theme = Theme.of(context);
             final colorScheme = theme.colorScheme;
             final db = ref.read(databaseProvider);
-            final nodesAsync = ref.watch(childrenOfProvider(_currentParentId));
             final cardsAsync = ref.watch(cardsOfProvider(_currentParentId));
 
-            return nodesAsync.when(
-              data: (nodes) {
-                return cardsAsync.when(
-                  data: (cards) {
-                    if (nodes.isEmpty && cards.isEmpty) {
-                      return _EmptyFolder(
-                        title: _currentParentId == widget.rootNodeId ? 'Empty Subject' : 'Empty Topic',
-                        onCreate: () => _showCreateOptions(context, false),
-                      );
-                    }
+            return cardsAsync.when(
+              data: (cards) {
+                final folderNodes = nodes.where((n) => n.type == 'FOLDER').toList();
+                
+                if (folderNodes.isEmpty && cards.isEmpty) {
+                  return _EmptyFolder(
+                    title: _currentParentId == widget.rootNodeId ? 'Empty Subject' : 'Empty Topic',
+                    onCreate: () => _showCreateOptions(context),
+                  );
+                }
 
-                    return CustomScrollView(
-                      slivers: [
-                        SliverPadding(
-                          padding: const EdgeInsets.all(20),
-                          sliver: SliverList(
-                            delegate: SliverChildListDelegate([
-                              if (nodes.where((n) => n.type == 'NOTE').isNotEmpty) ...[
-                                _ModuleNotePreview(note: nodes.firstWhere((n) => n.type == 'NOTE')),
-                                const SizedBox(height: 16),
-                              ],
-                              if (nodes.where((n) => n.type == 'FOLDER').isNotEmpty) ...[
-                                ...nodes.where((n) => n.type == 'FOLDER').map((node) => 
-                                  _FolderTile(
-                                    node: node,
-                                    onTap: () => _navigateInto(node.id, node.title),
-                                    onLongPress: () => _showNodeActions(context, node),
-                                  ),
+                return CustomScrollView(
+                  slivers: [
+                    SliverPadding(
+                      padding: const EdgeInsets.all(20),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          if (folderNodes.isNotEmpty) ...[
+                            ...folderNodes.map((node) => 
+                              _FolderTile(
+                                node: node,
+                                onTap: () => _navigateInto(node.id, node.title),
+                                onLongPress: () => _showNodeActions(context, node),
+                              ),
+                            ),
+                          ],
+                          if (cards.isNotEmpty) ...[
+                            ...cards.map((card) => 
+                              CardTile(
+                                card: card,
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => CreateCardScreen(
+                                    parentId: _currentParentId,
+                                    cardId: card.id,
+                                    initialFront: card.front,
+                                    initialBack: card.back,
+                                  )),
                                 ),
-                              ],
-                              if (cards.isNotEmpty) ...[
-                                ...cards.map((card) => 
-                                  CardTile(
-                                    card: card,
-                                    onTap: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (_) => CreateCardScreen(
-                                        parentId: _currentParentId,
-                                        cardId: card.id,
-                                        initialFront: card.front,
-                                        initialBack: card.back,
-                                      )),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 100), // Space for FAB
-                              ],
-                            ]),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('Error loading cards: $e')),
+                              ),
+                            ),
+                            const SizedBox(height: 100), // Space for FAB
+                          ],
+                        ]),
+                      ),
+                    ),
+                  ],
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error loading nodes: $e')),
+              error: (e, _) => Center(child: Text('Error loading cards: $e')),
             );
           },
         ),
@@ -192,7 +185,7 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
             return FloatingActionButton.extended(
               onPressed: () {
                 final nodes = ref.read(childrenOfProvider(_currentParentId)).valueOrNull ?? [];
-                _showCreateOptions(context, nodes.any((n) => n.type == 'NOTE'));
+                _showCreateOptions(context);
               },
               label: Text('NEW', style: AppTypography.buttonText()),
               icon: const Icon(Icons.add),
@@ -203,7 +196,12 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
     );
   }
 
-  PreferredSizeWidget _buildStandardAppBar() {
+  PreferredSizeWidget _buildStandardAppBar(List<Node> currentNodes) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final notes = currentNodes.where((n) => n.type == 'NOTE').toList();
+    final hasNotes = notes.isNotEmpty;
+
     return AppBar(
       toolbarHeight: 90,
       leading: const SizedBox.shrink(),
@@ -233,16 +231,29 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (hasNotes)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    iconSize: 22,
+                    icon: Icon(Icons.book_rounded, color: colorScheme.primary),
+                    tooltip: 'Topic Library',
+                    onPressed: () => _showTopicLibrary(context, notes),
+                  ),
                 IconButton(
-                  icon: Icon(Icons.play_arrow_rounded, color: Theme.of(context).colorScheme.primary),
+                  visualDensity: VisualDensity.compact,
+                  iconSize: 22,
+                  icon: Icon(Icons.play_arrow_rounded, color: colorScheme.primary),
+                  tooltip: 'Study (Linear)',
                   onPressed: () => _startStudy(isShuffle: false),
-                  tooltip: 'Play Cards',
                 ),
                 IconButton(
-                  icon: Icon(Icons.shuffle_rounded, color: Theme.of(context).colorScheme.secondary),
+                  visualDensity: VisualDensity.compact,
+                  iconSize: 22,
+                  icon: Icon(Icons.shuffle_rounded, color: colorScheme.primary),
+                  tooltip: 'Shuffle Play',
                   onPressed: () => _startStudy(isShuffle: true),
-                  tooltip: 'Shuffle Cards',
                 ),
+                const SizedBox(width: 4),
                 PopupMenuButton<String>(
                   onSelected: (val) {
                     if (val == 'reset') _handleBulkDeleteAll();
@@ -282,7 +293,7 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
   PreferredSizeWidget _buildSelectionAppBar(int count) {
     final colorScheme = Theme.of(context).colorScheme;
     return AppBar(
-      backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.1),
+      backgroundColor: colorScheme.primaryContainer.withOpacity(0.1),
       leading: IconButton(
         icon: const Icon(Icons.close),
         onPressed: () => ref.read(selectionProvider.notifier).clear(),
@@ -453,7 +464,7 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
     );
   }
 
-  void _showCreateOptions(BuildContext context, bool hasNote) {
+  void _showCreateOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -465,8 +476,8 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
               child: Text('ADD TO ${_currentTitle.toUpperCase()}', style: AppTypography.caption(color: Theme.of(context).colorScheme.primary)),
             ),
             ListTile(
-              leading: const Icon(Icons.view_module_outlined),
-              title: const Text('Topic'),
+              leading: const Icon(Icons.folder_outlined),
+              title: const Text('Folder'),
               subtitle: const Text('Organize your chapters and topics'),
               onTap: () {
                 Navigator.pop(context);
@@ -474,8 +485,8 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.quiz_outlined),
-              title: const Text('Practice'),
+              leading: const Icon(Icons.style_outlined),
+              title: const Text('Card'),
               subtitle: const Text('Create flashcards for active recall'),
               onTap: () {
                 Navigator.pop(context);
@@ -485,19 +496,18 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
                 );
               },
             ),
-            if (!hasNote)
-              ListTile(
-                leading: const Icon(Icons.note_add_outlined),
-                title: const Text('Note'),
-                subtitle: const Text('Write long-form thoughts or summaries'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => KeepNoteScreen(parentId: _currentParentId)),
-                  );
-                },
-              ),
+            ListTile(
+              leading: const Icon(Icons.book_outlined),
+              title: const Text('Note'),
+              subtitle: const Text('Write long-form thoughts or summaries'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => KeepNoteScreen(parentId: _currentParentId)),
+                );
+              },
+            ),
             const SizedBox(height: 16),
           ],
         ),
@@ -538,7 +548,7 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
                   const SizedBox(height: 24),
                   Container(
                     decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: TextField(
@@ -547,7 +557,7 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
                       style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
                       decoration: InputDecoration(
                         hintText: 'e.g. Molecular Biology',
-                        hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+                        hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.4)),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                       ),
@@ -633,6 +643,201 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
     }
     if (context.mounted) Navigator.pop(context);
   }
+
+  void _showTopicLibrary(BuildContext context, List<Node> notes) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final noda = theme.extension<NodaThemeExtension>();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colorScheme.outline.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'LEARNING MATERIAL',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Topic Library',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ReaderScreen(notes: notes, initialIndex: 0),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: noda?.brandGradient,
+                        borderRadius: BorderRadius.circular(100),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colorScheme.primary.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
+                          SizedBox(width: 4),
+                          Text(
+                            'READ ALL',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(24),
+                itemCount: notes.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 16),
+                itemBuilder: (context, index) {
+                  final note = notes[index];
+                  final snippet = _extractSnippet(note.content);
+                  
+                  return InkWell(
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ReaderScreen(notes: notes, initialIndex: index),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerLowest,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: colorScheme.outline.withValues(alpha: 0.1),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.description_outlined,
+                              color: colorScheme.primary,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  note.title.isNotEmpty ? note.title : 'Note ${index + 1}',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  snippet,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: colorScheme.outline.withValues(alpha: 0.3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _extractSnippet(String content) {
+    if (content.startsWith('[{"insert":')) {
+      try {
+        final List<dynamic> json = jsonDecode(content);
+        final plainText = json.map((part) => part['insert'] ?? '').join().trim();
+        return plainText.length > 100 ? '${plainText.substring(0, 100)}...' : plainText;
+      } catch (_) {}
+    }
+    return content.length > 100 ? '${content.substring(0, 100)}...' : content;
+  }
 }
 
 class _NavEntry {
@@ -660,13 +865,13 @@ class _EmptyFolder extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(40),
               decoration: BoxDecoration(
-                color: colorScheme.primary.withValues(alpha: 0.1),
+                color: colorScheme.primary.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.inventory_2_outlined,
                 size: 64,
-                color: colorScheme.primary.withValues(alpha: 0.5),
+                color: colorScheme.primary.withOpacity(0.5),
               ),
             ),
             const SizedBox(height: 32),
@@ -692,11 +897,11 @@ class _EmptyFolder extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 decoration: BoxDecoration(
-                  gradient: theme.extension<NodaThemeExtension>()!.brandGradient,
+                  gradient: theme.extension<NodaThemeExtension>()?.brandGradient,
                   borderRadius: BorderRadius.circular(100),
                   boxShadow: [
                     BoxShadow(
-                      color: colorScheme.primary.withValues(alpha: 0.3),
+                      color: colorScheme.primary.withOpacity(0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -742,14 +947,14 @@ class _FolderTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final noda = theme.extension<NodaThemeExtension>()!;
+    final noda = theme.extension<NodaThemeExtension>(); if (noda == null) return const SizedBox.shrink();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.08)),
+        border: Border.all(color: colorScheme.outline.withOpacity(0.08)),
       ),
       child: ListTile(
         onTap: onTap,
@@ -758,7 +963,7 @@ class _FolderTile extends StatelessWidget {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(Icons.folder_outlined, color: colorScheme.onSurfaceVariant, size: 22),
@@ -778,37 +983,21 @@ class _ModuleNotePreview extends StatelessWidget {
   
   const _ModuleNotePreview({required this.note});
 
+  String _extractPlainText(String? content) {
+    if (content != null && content.startsWith('[{"insert":')) {
+      try {
+        final List<dynamic> json = jsonDecode(content);
+        return json.map((part) => part['insert'] ?? '').join().trim();
+      } catch (_) {}
+    }
+    return content ?? "";
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     
-    Widget contentWidget;
-    if (note.content.isEmpty) {
-      contentWidget = Text('Empty note.', style: TextStyle(color: colorScheme.onSurfaceVariant));
-    } else if (note.content.startsWith('[{"insert":')) {
-      try {
-        final doc = Document.fromJson(jsonDecode(note.content));
-        final controller = QuillController(
-          document: doc,
-          selection: const TextSelection.collapsed(offset: 0),
-          readOnly: true,
-        );
-        contentWidget = QuillEditor.basic(
-          controller: controller,
-          config: const QuillEditorConfig(
-            autoFocus: false,
-            scrollable: false,
-            padding: EdgeInsets.zero,
-          ),
-        );
-      } catch (_) {
-        contentWidget = Text('Error loading note', style: TextStyle(color: colorScheme.error));
-      }
-    } else {
-      contentWidget = MarkdownBody(data: note.content);
-    }
-
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -832,7 +1021,7 @@ class _ModuleNotePreview extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.black,
-                      Colors.black.withValues(alpha: 0.1),
+                      Colors.black.withOpacity(0.1),
                       Colors.transparent,
                     ],
                     stops: const [0.6, 0.9, 1.0],
@@ -844,7 +1033,9 @@ class _ModuleNotePreview extends StatelessWidget {
                   child: IgnorePointer(
                     child: SingleChildScrollView(
                       physics: const NeverScrollableScrollPhysics(),
-                      child: contentWidget,
+                      child: NodaMarkdown(
+                        data: _extractPlainText(note.content),
+                      ),
                     ),
                   ),
                 ),
@@ -870,3 +1061,7 @@ class _ModuleNotePreview extends StatelessWidget {
     );
   }
 }
+
+
+
+

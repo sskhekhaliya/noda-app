@@ -84,7 +84,7 @@ class _MiniButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(100),
         child: InkWell(
           onTap: onTap,
@@ -172,7 +172,7 @@ class _ActionButtonState extends State<_ActionButton>
             boxShadow: widget.isPrimary
                 ? [
                     BoxShadow(
-                      color: colorScheme.primary.withValues(alpha: 0.15),
+                      color: colorScheme.primary.withOpacity(0.15),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -206,3 +206,4 @@ class _ActionButtonState extends State<_ActionButton>
     );
   }
 }
+

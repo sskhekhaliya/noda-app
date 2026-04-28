@@ -21,7 +21,7 @@ class CardTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final noda = theme.extension<NodaThemeExtension>()!;
+    final noda = theme.extension<NodaThemeExtension>(); if (noda == null) return const SizedBox.shrink();
     final selection = ref.watch(selectionProvider);
     final isSelected = selection.contains(card.id);
     final isSelectionMode = selection.isNotEmpty;
@@ -53,7 +53,7 @@ class CardTile extends ConsumerWidget {
         color: colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isSelected ? colorScheme.primary : colorScheme.outline.withValues(alpha: 0.08),
+          color: isSelected ? colorScheme.primary : colorScheme.outline.withOpacity(0.08),
           width: isSelected ? 2 : 1,
         ),
       ),
@@ -74,7 +74,7 @@ class CardTile extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(Icons.style_outlined, size: 20, color: colorScheme.onSurfaceVariant),
@@ -108,7 +108,7 @@ class CardTile extends ConsumerWidget {
               Text(
                 '${card.score}',
                 style: AppTypography.caption(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
                 ).copyWith(fontWeight: FontWeight.w300),
               ),
             ],
@@ -135,7 +135,7 @@ class _SelectionIndicator extends StatelessWidget {
         shape: BoxShape.circle,
         color: isSelected ? colorScheme.primary : Colors.transparent,
         border: Border.all(
-          color: isSelected ? colorScheme.primary : colorScheme.outline.withValues(alpha: 0.4),
+          color: isSelected ? colorScheme.primary : colorScheme.outline.withOpacity(0.4),
           width: 2,
         ),
       ),
@@ -145,3 +145,5 @@ class _SelectionIndicator extends StatelessWidget {
     );
   }
 }
+
+

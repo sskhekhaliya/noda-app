@@ -27,7 +27,7 @@ class BreadcrumbBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final noda = Theme.of(context).extension<NodaThemeExtension>()!;
+    final noda = Theme.of(context).extension<NodaThemeExtension>(); if (noda == null) return const SizedBox.shrink();
     final colorScheme = Theme.of(context).colorScheme;
 
     return SizedBox(
@@ -81,7 +81,7 @@ class _BreadcrumbText extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final noda = theme.extension<NodaThemeExtension>()!;
+    final noda = theme.extension<NodaThemeExtension>(); if (noda == null) return const SizedBox.shrink();
 
     return InkWell(
       onTap: onTap,
@@ -93,7 +93,7 @@ class _BreadcrumbText extends StatelessWidget {
           style: theme.textTheme.labelSmall?.copyWith(
             color: isLast 
                 ? colorScheme.onSurface 
-                : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                : colorScheme.onSurfaceVariant.withOpacity(0.5),
             fontWeight: isLast ? FontWeight.w800 : FontWeight.w600,
             fontSize: 10,
             letterSpacing: 0.8,
@@ -115,7 +115,7 @@ class _Separator extends StatelessWidget {
       child: Text(
         ' / ',
         style: TextStyle(
-          color: color.withValues(alpha: 0.15),
+          color: color.withOpacity(0.15),
           fontSize: 12,
           fontWeight: FontWeight.w300,
         ),
@@ -123,3 +123,5 @@ class _Separator extends StatelessWidget {
     );
   }
 }
+
+

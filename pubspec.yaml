@@ -46,6 +46,8 @@ dev_dependencies:
   riverpod_generator: ^2.6.4
   custom_lint:
   riverpod_lint: ^2.6.4
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
 
 flutter:
   uses-material-design: true
@@ -53,3 +55,24 @@ flutter:
   assets:
     - assets/Logo.png
     - assets/Full Logo.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/Logo_Padded.png"
+  adaptive_icon_background: "#F6FAFE"
+  adaptive_icon_foreground: "assets/Logo_Padded.png"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#F6FAFE"
+  image: assets/Logo_Padded.png
+  android_12:
+    image: assets/Logo_Padded.png
+    color: "#F6FAFE"
+    icon_background_color: "#F6FAFE"
+  color_dark: "#020617"
+  image_dark: assets/Logo_Padded.png
+  android: true
+  ios: true
+  fullscreen: true

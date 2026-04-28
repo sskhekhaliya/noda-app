@@ -86,7 +86,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final noda = Theme.of(context).extension<NodaThemeExtension>()!;
+    final noda = Theme.of(context).extension<NodaThemeExtension>(); if (noda == null) return const SizedBox.shrink();
 
     return Scaffold(
       body: Container(
@@ -182,7 +182,7 @@ class _SplashScreenState extends State<SplashScreen>
                         .textTheme
                         .bodySmall
                         ?.color
-                        ?.withValues(alpha: 0.6),
+                        ?.withOpacity(0.6),
                   ),
                 ),
               ),
@@ -193,3 +193,5 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 }
+
+

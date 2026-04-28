@@ -15,3 +15,10 @@ final recursiveCardCountProvider =
   final db = ref.watch(databaseProvider);
   return db.countRecursiveCards(nodeId);
 });
+
+/// Provider for all cards in the database.
+final allCardsProvider = StreamProvider<List<Card>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.watchAllCards();
+});
+
