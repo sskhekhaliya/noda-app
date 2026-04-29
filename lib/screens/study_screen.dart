@@ -118,8 +118,29 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
             Navigator.pop(context);
           },
         ),
-        title: Text(state.parentTitle, style: AppTypography.headingSmall()),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(state.parentTitle, style: AppTypography.headingSmall()),
+            if (state.currentCard != null && state.initialCount > 0)
+              Text(
+                '${state.initialCount - state.allCards.length + 1} of ${state.initialCount}',
+                style: AppTypography.bodySmall(color: colorScheme.onSurfaceVariant).copyWith(fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+          ],
+        ),
         centerTitle: true,
+        bottom: (state.currentCard == null || state.initialCount == 0)
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(2),
+                child: LinearProgressIndicator(
+                  value: (state.initialCount - state.allCards.length + 1) / state.initialCount,
+                  backgroundColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+                  minHeight: 2,
+                ),
+              ),
         actions: [
           IconButton(
             icon: Icon(
@@ -161,6 +182,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
                     ? const Center(child: CircularProgressIndicator())
                     : state.currentCard == null
                         ? _DoneScreen(
+                            totalCards: state.initialCount,
                             onClose: () => Navigator.pop(context),
                             onRetake: () {
                               if (state.startNodeId == 'GLOBAL') {
@@ -271,10 +293,15 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
 }
 
 class _DoneScreen extends StatelessWidget {
+  final int totalCards;
   final VoidCallback onClose;
   final VoidCallback onRetake;
 
-  const _DoneScreen({required this.onClose, required this.onRetake});
+  const _DoneScreen({
+    required this.totalCards,
+    required this.onClose,
+    required this.onRetake,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -299,7 +326,9 @@ class _DoneScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'You\'ve synchronized your knowledge.',
+              totalCards > 0 
+                ? 'You\'ve mastered $totalCards cards today.'
+                : 'You\'ve synchronized your knowledge.',
               style: AppTypography.bodyMedium(color: colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 48),

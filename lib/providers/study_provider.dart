@@ -12,6 +12,7 @@ class StudyState {
   final bool isShuffle;
   final String startNodeId;
   final Map<String, String> nodeTitles;
+  final int initialCount;
 
   const StudyState({
     this.allCards = const [],
@@ -22,6 +23,7 @@ class StudyState {
     this.isShuffle = true,
     this.startNodeId = '',
     this.nodeTitles = const {},
+    this.initialCount = 0,
   });
 
   StudyState copyWith({
@@ -33,6 +35,7 @@ class StudyState {
     bool? isShuffle,
     String? startNodeId,
     Map<String, String>? nodeTitles,
+    int? initialCount,
     bool clearCurrentCard = false,
   }) {
     return StudyState(
@@ -44,6 +47,7 @@ class StudyState {
       isShuffle: isShuffle ?? this.isShuffle,
       startNodeId: startNodeId ?? this.startNodeId,
       nodeTitles: nodeTitles ?? this.nodeTitles,
+      initialCount: initialCount ?? this.initialCount,
     );
   }
 }
@@ -86,6 +90,7 @@ class StudyNotifier extends StateNotifier<StudyState> {
     
     state = state.copyWith(
       allCards: cards,
+      initialCount: cards.length,
       isLoading: false,
       nodeTitles: nodeTitles,
     );
@@ -184,6 +189,7 @@ class StudyNotifier extends StateNotifier<StudyState> {
     
     state = state.copyWith(
       allCards: cards,
+      initialCount: cards.length,
       isLoading: false,
       nodeTitles: nodeTitles,
     );
