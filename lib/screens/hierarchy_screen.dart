@@ -869,11 +869,11 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
                   const Spacer(),
                   GestureDetector(
                     onTap: () {
-                      Navigator.pop(context);
+                      ref.read(revisionProvider.notifier).startLinearWithNotes(notes, 'Notes', initialIndex: 0);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => ReaderScreen(notes: notes, initialIndex: 0),
+                          builder: (_) => const RevisionFeedScreen(),
                         ),
                       );
                     },
@@ -923,11 +923,11 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
                   
                   return InkWell(
                     onTap: () {
-                      Navigator.pop(context);
+                      ref.read(revisionProvider.notifier).startLinearWithNotes(notes, 'Notes', initialIndex: index);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => ReaderScreen(notes: notes, initialIndex: index),
+                          builder: (_) => const RevisionFeedScreen(),
                         ),
                       );
                     },

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart';
 import '../data/database/app_database.dart';
 import 'database_provider.dart';
 
@@ -112,32 +113,67 @@ final currentChildrenProvider = StreamProvider<List<Node>>((ref) {
 
 /// Watches folders and notes (no cards) for the Notes tab navigation.
 /// Only keeps folders that contain at least one note.
-final notesChildrenProvider = StreamProvider<List<Node>>((ref) async* {
+final notesChildrenProvider = StreamProvider<List<Node>>((ref) {
   final db = ref.watch(databaseProvider);
   final navState = ref.watch(notesNavigationProvider);
+  final explorerMode = ref.watch(notesExplorerModeProvider);
 
-  final Stream<List<Node>> baseStream = navState.currentParentId == null
-      ? db.watchRootNodes()
-      : db.watchChildrenOf(navState.currentParentId!);
+  // Explorer mode (File vs Folder) only applies when inside a subject.
+  // At the root level, we always show the subject hierarchy regardless of the toggle state.
+  if (explorerMode == ExplorerMode.file && navState.currentParentId != null) {
+    // Watch all nodes to ensure any structural change triggers a re-flattening.
+    return db.select(db.nodes).watch().asyncMap((_) async {
+      return _fetchFlattenedNotes(db, navState.currentParentId!);
+    });
+  } else {
+    // Folder Mode or Root level: Direct children with recursive note count check for folders.
+    final baseStream = navState.currentParentId == null
+        ? db.watchRootNodes()
+        : db.watchChildrenOf(navState.currentParentId!);
 
-  await for (final nodes in baseStream) {
-    final filtered = <Node>[];
-    for (final node in nodes) {
-      if (node.type == 'NOTE') {
-        filtered.add(node);
-      } else if (node.type == 'FOLDER') {
-        final count = await db.countRecursiveNotes(node.id);
-        if (count > 0) {
+
+    return baseStream.asyncMap((nodes) async {
+      final filtered = <Node>[];
+      for (final node in nodes) {
+        if (node.type == 'NOTE') {
           filtered.add(node);
+        } else if (node.type == 'FOLDER') {
+          final count = await db.countRecursiveNotes(node.id);
+          if (count > 0) {
+            filtered.add(node);
+          }
         }
       }
-    }
-    yield filtered;
+      return filtered;
+    });
   }
 });
 
+
+
+
+/// Helper to fetch notes in the specific order: 
+/// Direct notes of parent, then recursively notes of each subfolder.
+Future<List<Node>> _fetchFlattenedNotes(AppDatabase db, String parentId) async {
+  final children = await db.getChildrenOf(parentId);
+  final notes = children.where((n) => n.type == 'NOTE').toList();
+  final folders = children.where((n) => n.type == 'FOLDER').toList();
+  
+  List<Node> result = [...notes];
+  for (final folder in folders) {
+    result.addAll(await _fetchFlattenedNotes(db, folder.id));
+  }
+  return result;
+}
+
+
 enum ViewMode { list, grid }
+enum ExplorerMode { folder, file }
 
 /// Controls the view mode (list/grid) in the Notes tab.
 final notesViewModeProvider = StateProvider<ViewMode>((ref) => ViewMode.list);
+
+/// Controls the explorer mode (folder/file) in the Notes tab.
+final notesExplorerModeProvider = StateProvider<ExplorerMode>((ref) => ExplorerMode.folder);
+
 

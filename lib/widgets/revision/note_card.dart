@@ -127,42 +127,32 @@ class _NoteCardState extends ConsumerState<NoteCard> {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Consumer(
-                              builder: (context, ref, _) {
-                                final tts = ref.watch(ttsProvider);
-                                final isSpeakingThisNote = tts.isPlaying && tts.currentText == widget.note.content;
-                                final displayData = (isSpeakingThisNote && tts.start != null && tts.end != null)
-                                    ? _injectHighlight(widget.note.content ?? "", tts.start ?? 0, tts.end ?? 0)
-                                    : ((widget.note.content?.isEmpty ?? true) ? 'No content yet.' : (widget.note.content ?? ""));
-
-                                return NotificationListener<ScrollNotification>(
-                                  onNotification: (notification) {
-                                    if (notification is ScrollUpdateNotification) {
-                                      if (_isAtBottom && (notification.scrollDelta ?? 0) > 0) {
-                                        widget.controller.position.jumpTo(
-                                          widget.controller.position.pixels + (notification.scrollDelta ?? 0),
-                                        );
-                                      }
-                                    } else if (notification is OverscrollNotification) {
-                                      if (notification.overscroll > 0) {
-                                        widget.controller.position.jumpTo(
-                                          widget.controller.position.pixels + notification.overscroll,
-                                        );
-                                      }
-                                    }
-                                    return false;
-                                  },
-                                  child: SingleChildScrollView(
-                                    controller: _scrollController,
-                                    physics: const ClampingScrollPhysics(),
-                                    child: NodaMarkdown(
-                                      data: displayData,
-                                      selectable: true,
-                                      padding: const EdgeInsets.only(bottom: 40),
-                                    ),
-                                  ),
-                                );
+                            child: NotificationListener<ScrollNotification>(
+                              onNotification: (notification) {
+                                if (notification is ScrollUpdateNotification) {
+                                  if (_isAtBottom && (notification.scrollDelta ?? 0) > 0) {
+                                    widget.controller.position.jumpTo(
+                                      widget.controller.position.pixels + (notification.scrollDelta ?? 0),
+                                    );
+                                  }
+                                } else if (notification is OverscrollNotification) {
+                                  if (notification.overscroll > 0) {
+                                    widget.controller.position.jumpTo(
+                                      widget.controller.position.pixels + notification.overscroll,
+                                    );
+                                  }
+                                }
+                                return false;
                               },
+                              child: SingleChildScrollView(
+                                controller: _scrollController,
+                                physics: const ClampingScrollPhysics(),
+                                child: NodaMarkdown(
+                                  data: (widget.note.content?.isEmpty ?? true) ? 'No content yet.' : (widget.note.content ?? ""),
+                                  selectable: true,
+                                  padding: const EdgeInsets.only(bottom: 40),
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -202,7 +192,7 @@ class _TtsActionButton extends ConsumerWidget {
         if (isPlaying) {
           ref.read(ttsProvider.notifier).stop();
         } else {
-          ref.read(ttsProvider.notifier).speak(text);
+          ref.read(ttsProvider.notifier).speak(text, resume: true);
         }
       },
       style: IconButton.styleFrom(
@@ -212,34 +202,3 @@ class _TtsActionButton extends ConsumerWidget {
     );
   }
 }
-
-String _injectHighlight(String raw, int start, int end) {
-  if (start < 0 || end > raw.length || start >= end) return raw;
-
-  // Find the start of the line where the highlight begins
-  int lineStart = raw.lastIndexOf('\n', start);
-  lineStart = lineStart == -1 ? 0 : lineStart + 1;
-
-  // Check if the line starts with a common markdown block marker
-  // Markers: Unordered (*, -, +), Ordered (\d+.), Headers (#+), Blockquote (>)
-  final lineMarkerMatch = RegExp(r'^(\s*(\d+\.|[-*+]|#{1,6}|>)\s+)').matchAsPrefix(raw.substring(lineStart));
-  
-  if (lineMarkerMatch != null) {
-    int markerEnd = lineStart + lineMarkerMatch.end;
-    // If the highlight begins inside or before the marker, shift it past the marker
-    // to prevent flutter_markdown from failing to parse the block type (like a list item).
-    if (start < markerEnd) {
-      start = markerEnd;
-    }
-  }
-
-  // If after adjustment the highlight is empty or negative, don't inject.
-  if (start >= end) return raw;
-
-  final before = raw.substring(0, start);
-  final target = raw.substring(start, end);
-  final after = raw.substring(end);
-  return '$before<highlight>$target</highlight>$after';
-}
-
-

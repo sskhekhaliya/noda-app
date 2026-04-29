@@ -27,6 +27,7 @@ import 'study_screen.dart';
 import '../providers/study_provider.dart';
 import 'notes_library_screen.dart';
 import 'settings_screen.dart';
+import '../providers/navigation_provider.dart';
 
 /// Main home screen showing root-level subjects.
 class HomeScreen extends ConsumerStatefulWidget {
@@ -233,7 +234,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
               ),
             )
-          : null,
+          : _currentIndex == 3
+              ? Padding(
+                  padding: const EdgeInsets.only(bottom: 80),
+                  child: ScaleTransition(
+                    scale: _fabScale,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: noda.brandGradient,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: colorScheme.primary.withOpacity(0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: FloatingActionButton(
+                        onPressed: () async {
+                          final navState = ref.read(notesNavigationProvider);
+                          await ref.read(revisionProvider.notifier).startChronological(
+                            navState.currentParentId, 
+                            navState.currentParentId == null ? 'Knowledge Base' : (navState.navigationPath.lastOrNull?.title ?? 'Folder')
+                          );
+                          if (!mounted) return;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const RevisionFeedScreen()),
+                          );
+                        },
+                        backgroundColor: Colors.transparent,
+                        elevation: 0,
+                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
+                      ),
+                    ),
+                  ),
+                )
+              : null,
     );
   }
 
@@ -507,9 +545,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           icon: Icons.shuffle_rounded,
                           label: 'Shuffle',
                           isGradient: false,
-                          onTap: () {
+                          onTap: () async {
                             if (rootNodes.value?.isNotEmpty ?? false) {
-                              _startRevision(context, rootNodes.value!.first, RevisionMode.shuffle);
+                              await ref.read(studyProvider.notifier).startGlobalSession(isShuffle: true);
+                              if (!mounted) return;
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const StudyScreen()),
+                              );
                             }
                           },
                         ),
@@ -538,9 +580,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       icon: Icons.shuffle_rounded,
                       label: 'Shuffle',
                       isGradient: false,
-                      onTap: () {
+                      onTap: () async {
                         if (rootNodes.value?.isNotEmpty ?? false) {
-                          _startRevision(context, rootNodes.value!.first, RevisionMode.shuffle);
+                          await ref.read(studyProvider.notifier).startGlobalSession(isShuffle: true);
+                          if (!mounted) return;
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const StudyScreen()),
+                          );
                         }
                       },
                     ),

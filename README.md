@@ -13,6 +13,8 @@ Noda is a professional-grade, distraction-free knowledge base and revision app d
 - **Universal Markdown Support**: Take notes using rich Markdown syntax, including highlights, task lists, and custom symbols.
 - **PC-Style Navigation**: Dynamic breadcrumbs and parallel navigation between your Library and Knowledge Base.
 - **Customizable Views**: Toggle between sleek List views and modern Grid-based "Knowledge Cubes."
+- **Dual Explorer Modes**: Switch between a traditional **Folder Mode** and a flattened **File Mode** to view all your notes in a continuous, sequential stream within any subject.
+
 
 ## 🎨 Design Philosophy
 

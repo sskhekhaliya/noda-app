@@ -11,23 +11,24 @@ import '../widgets/revision/note_card.dart';
 import '../widgets/revision/long_press_menu.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
+import 'keep_note_screen.dart';
 
-/// Full-screen revision feed — scrolls vertically through notes.
+/// Full-screen revision feed — scrolls horizontally through notes.
 class RevisionFeedScreen extends ConsumerStatefulWidget {
   const RevisionFeedScreen({super.key});
 
   @override
   ConsumerState<RevisionFeedScreen> createState() => _RevisionFeedScreenState();
-}
-
-class _RevisionFeedScreenState extends ConsumerState<RevisionFeedScreen> {
+}class _RevisionFeedScreenState extends ConsumerState<RevisionFeedScreen> {
   late final PageController _pageController;
   bool _hasSpokenInitial = false;
+  bool _isPopping = false;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    final revision = ref.read(revisionProvider);
+    _pageController = PageController(initialPage: revision.currentIndex);
     
     // Initial speech for the first note
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -36,7 +37,7 @@ class _RevisionFeedScreenState extends ConsumerState<RevisionFeedScreen> {
       if (settings.autoplayTts && revision.notes.isNotEmpty && !_hasSpokenInitial) {
         _hasSpokenInitial = true;
         Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted && ref.read(settingsProvider).autoplayTts) {
+          if (mounted && !_isPopping && ref.read(settingsProvider).autoplayTts) {
             final firstNote = ref.read(revisionProvider).notes[0];
             ref.read(ttsProvider.notifier).speak(firstNote.content);
           }
@@ -46,8 +47,17 @@ class _RevisionFeedScreenState extends ConsumerState<RevisionFeedScreen> {
   }
 
   @override
+  void deactivate() {
+    _isPopping = true;
+    ref.read(ttsProvider.notifier).stop();
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
+    _isPopping = true;
     _pageController.dispose();
+    ref.read(ttsProvider.notifier).stop();
     super.dispose();
   }
 
@@ -62,62 +72,71 @@ class _RevisionFeedScreenState extends ConsumerState<RevisionFeedScreen> {
       );
     }
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          // Note cards feed
-          PageView.builder(
-            controller: _pageController,
-            scrollDirection: Axis.vertical,
-            itemCount: revision.totalCount,
-            onPageChanged: (index) {
-              ref.read(revisionProvider.notifier).goToIndex(index);
-              final settings = ref.read(settingsProvider);
-              if (settings.autoplayTts) {
+    return PopScope(
+      onPopInvokedWithResult: (didPop, result) {
+        // Stop TTS immediately on any pop attempt (system back or cross button)
+        _isPopping = true;
+        ref.read(ttsProvider.notifier).stop();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            // Note cards feed
+            PageView.builder(
+              controller: _pageController,
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: revision.totalCount,
+              onPageChanged: (index) {
+                if (_isPopping) return;
+                ref.read(revisionProvider.notifier).goToIndex(index);
+                final settings = ref.read(settingsProvider);
+                if (settings.autoplayTts) {
+                  final note = revision.notes[index];
+                  ref.read(ttsProvider.notifier).speak(note.content);
+                }
+              },
+              itemBuilder: (context, index) {
                 final note = revision.notes[index];
-                ref.read(ttsProvider.notifier).speak(note.content);
-              }
-            },
-            itemBuilder: (context, index) {
-              final note = revision.notes[index];
-              return NoteCard(
-                note: note,
-                controller: _pageController,
-                onLongPress: (selectedText) {
-                  LongPressMenu.show(
-                    context: context,
-                    ref: ref,
-                    note: note,
-                    selectedText: selectedText,
-                  );
-                },
-              );
-            },
-          ),
-
-          // Top overlay: breadcrumb + progress
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _TopOverlay(
-              revision: revision,
-              onBack: () => Navigator.pop(context),
-              onShuffle: () {
-                ref.read(revisionProvider.notifier).reshuffle();
-                _pageController.jumpToPage(0);
+                return NoteCard(
+                  note: note,
+                  controller: _pageController,
+                  onLongPress: (selectedText) {
+                    LongPressMenu.show(
+                      context: context,
+                      ref: ref,
+                      note: note,
+                      selectedText: selectedText,
+                    );
+                  },
+                );
               },
             ),
-          ),
 
-          // Bottom progress bar
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _BottomProgressBar(revision: revision),
-          ),
-        ],
+            // Top overlay: breadcrumb + progress
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _TopOverlay(
+                revision: revision,
+                onBack: () => Navigator.pop(context),
+                onShuffle: () {
+                  ref.read(revisionProvider.notifier).reshuffle();
+                  _pageController.jumpToPage(0);
+                },
+              ),
+            ),
+
+            // Bottom progress bar
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _BottomProgressBar(revision: revision),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -180,10 +199,7 @@ class _TopOverlay extends ConsumerWidget {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              (revision.mode == RevisionMode.linear
-                                      ? 'Linear Revision'
-                                      : 'Deep Shuffle')
-                                  .toUpperCase(),
+                              'NOTES',
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: colorScheme.primary,
                                 fontWeight: FontWeight.w800,
@@ -214,26 +230,13 @@ class _TopOverlay extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  // Counter
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: Text(
-                      '${revision.currentIndex + 1} / ${revision.totalCount}',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: colorScheme.onSurface,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
                   if (revision.mode == RevisionMode.shuffle) ...[
                     const SizedBox(width: 4),
                     IconButton(
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: Icon(
+                        Icons.refresh_rounded,
+                        color: colorScheme.onSurface,
+                      ),
                       tooltip: 'Reshuffle',
                       onPressed: onShuffle,
                     ),
@@ -248,14 +251,59 @@ class _TopOverlay extends ConsumerWidget {
                           color: settings.autoplayTts ? colorScheme.primary : colorScheme.onSurface,
                         ),
                         onPressed: () {
-                          ref.read(settingsProvider.notifier).setAutoplayTts(!settings.autoplayTts);
                           if (!settings.autoplayTts && revision.currentNote != null) {
-                            ref.read(ttsProvider.notifier).speak(revision.currentNote!.content);
+                            ref.read(settingsProvider.notifier).setAutoplayTts(true);
+                            ref.read(ttsProvider.notifier).speak(revision.currentNote!.content, resume: true);
                           } else {
+                            ref.read(settingsProvider.notifier).setAutoplayTts(false);
                             ref.read(ttsProvider.notifier).stop();
                           }
                         },
                       );
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: Icon(
+                      Icons.replay_rounded,
+                      color: colorScheme.onSurface,
+                    ),
+                    tooltip: 'Restart from beginning',
+                    onPressed: () {
+                      if (revision.currentNote != null) {
+                        ref.read(settingsProvider.notifier).setAutoplayTts(true);
+                        ref.read(ttsProvider.notifier).speak(revision.currentNote!.content, resume: false);
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit_rounded,
+                      color: colorScheme.onSurface,
+                    ),
+                    tooltip: 'Edit Note',
+                    onPressed: () async {
+                      final currentNote = revision.currentNote;
+                      if (currentNote == null) return;
+                      
+                      // Stop TTS when editing
+                      ref.read(ttsProvider.notifier).stop();
+                      
+                      final result = await Navigator.push<String>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => KeepNoteScreen(
+                            parentId: currentNote.parentId ?? '',
+                            nodeId: currentNote.id,
+                            initialContent: currentNote.content,
+                          ),
+                        ),
+                      );
+                      
+                      if (result != null) {
+                        ref.read(revisionProvider.notifier).updateNoteContent(currentNote.id, result);
+                      }
                     },
                   ),
                 ],
@@ -324,12 +372,32 @@ class _BottomProgressBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                '${(revision.progress * 100).round()}% Immersion',
-                style: theme.textTheme.labelSmall?.copyWith(
-                      color: noda.textSecondary,
-                      fontWeight: FontWeight.w600,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${(revision.progress * 100).round()}% Immersion',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                          color: noda.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHigh.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(100),
                     ),
+                    child: Text(
+                      '${revision.currentIndex + 1} / ${revision.totalCount}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: noda.textSecondary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -338,7 +406,3 @@ class _BottomProgressBar extends StatelessWidget {
     );
   }
 }
-
-
-
-

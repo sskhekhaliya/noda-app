@@ -128,11 +128,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 if (isPlaying) {
                   ref.read(ttsProvider.notifier).stop();
                 } else {
-                  // Speak the title then the content
-                  final speechText = currentNote.title.isNotEmpty 
-                      ? '${currentNote.title}. ${currentNote.content}' 
-                      : currentNote.content;
-                  ref.read(ttsProvider.notifier).speak(speechText);
+                  ref.read(ttsProvider.notifier).speak(currentNote.content);
                 }
               },
             ),

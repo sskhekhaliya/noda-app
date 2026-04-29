@@ -136,7 +136,6 @@ class NodaMarkdown extends ConsumerWidget {
           StyleTagSyntax(),
           StaticHighlightSyntax(),
           WikiLinkSyntax(),
-          HighlightSyntax(),
         ],
       ),
       blockSyntaxes: const [
@@ -169,12 +168,6 @@ class NodaMarkdown extends ConsumerWidget {
           color: colorScheme.brightness == Brightness.light
               ? const Color(0xFFE0E7FF) // Soft Lavender (Light)
               : colorScheme.primary.withOpacity(0.25), // Translucent Sapphire (Dark)
-        ),
-        'highlight': HighlightBuilder(
-          highlightStyle: AppTypography.bodyLarge().copyWith(
-            backgroundColor: colorScheme.primary.withOpacity(0.25),
-            fontWeight: FontWeight.w900,
-          ),
         ),
         'code': CodeElementBuilder(colorScheme: colorScheme),
       },
@@ -548,26 +541,6 @@ class StaticHighlightBuilder extends MarkdownElementBuilder {
   }
 }
 
-class HighlightSyntax extends md.InlineSyntax {
-  HighlightSyntax() : super(r'<highlight>(.*?)</highlight>');
-
-  @override
-  bool onMatch(md.InlineParser parser, Match match) {
-    final content = match[1] ?? '';
-    parser.addNode(md.Element.text('highlight', content));
-    return true;
-  }
-}
-
-class HighlightBuilder extends MarkdownElementBuilder {
-  final TextStyle highlightStyle;
-  HighlightBuilder({required this.highlightStyle});
-
-  @override
-  TextStyle? getTextStyle(md.Element element, TextStyle preferredStyle) {
-    return preferredStyle.merge(highlightStyle);
-  }
-}
 class CodeElementBuilder extends MarkdownElementBuilder {
   final ColorScheme colorScheme;
   CodeElementBuilder({required this.colorScheme});

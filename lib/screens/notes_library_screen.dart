@@ -9,6 +9,8 @@ import '../providers/nodes_provider.dart';
 import '../providers/navigation_provider.dart';
 import '../widgets/hierarchy/breadcrumb_bar.dart';
 import 'reader_screen.dart';
+import 'revision_feed_screen.dart';
+import '../providers/revision_provider.dart';
 import '../core/utils/preview_utils.dart';
 
 class NotesLibraryScreen extends ConsumerWidget {
@@ -19,7 +21,9 @@ class NotesLibraryScreen extends ConsumerWidget {
     final navState = ref.watch(notesNavigationProvider);
     final navNotifier = ref.read(notesNavigationProvider.notifier);
     final viewMode = ref.watch(notesViewModeProvider);
+    final explorerMode = ref.watch(notesExplorerModeProvider);
     final childrenAsync = ref.watch(notesChildrenProvider);
+
     final recentNotes = ref.watch(recentNotesProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -82,6 +86,15 @@ class NotesLibraryScreen extends ConsumerWidget {
                       viewMode: viewMode,
                       onChanged: (mode) => ref.read(notesViewModeProvider.notifier).state = mode,
                     ),
+                    if (navState.currentParentId != null) ...[
+                      const SizedBox(width: 8),
+                      _ExplorerModeToggle(
+                        mode: explorerMode,
+                        onChanged: (mode) => ref.read(notesExplorerModeProvider.notifier).state = mode,
+                      ),
+                    ],
+
+
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -190,60 +203,92 @@ class _ViewModeToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh.withOpacity(0.3),
+    final isGrid = viewMode == ViewMode.grid;
+
+    return Tooltip(
+      message: isGrid ? 'Switch to list view' : 'Switch to grid view',
+      child: InkWell(
+        onTap: () => onChanged(isGrid ? ViewMode.list : ViewMode.grid),
         borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ToggleItem(
-            icon: Icons.view_list_rounded,
-            isSelected: viewMode == ViewMode.list,
-            onTap: () => onChanged(ViewMode.list),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHigh.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: colorScheme.outline.withOpacity(0.05),
+            ),
           ),
-          _ToggleItem(
-            icon: Icons.grid_view_rounded,
-            isSelected: viewMode == ViewMode.grid,
-            onTap: () => onChanged(ViewMode.grid),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return RotationTransition(
+                turns: animation,
+                child: ScaleTransition(scale: animation, child: child),
+              );
+            },
+            child: Icon(
+              isGrid ? Icons.view_list_rounded : Icons.grid_view_rounded,
+              key: ValueKey(viewMode),
+              size: 20,
+              color: colorScheme.primary,
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _ToggleItem extends StatelessWidget {
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
+class _ExplorerModeToggle extends StatelessWidget {
+  final ExplorerMode mode;
+  final ValueChanged<ExplorerMode> onChanged;
 
-  const _ToggleItem({required this.icon, required this.isSelected, required this.onTap});
+  const _ExplorerModeToggle({required this.mode, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: isSelected ? colorScheme.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: isSelected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant.withOpacity(0.4),
+    final isFile = mode == ExplorerMode.file;
+
+    return Tooltip(
+      message: isFile ? 'Switch to folder view' : 'Switch to file view',
+      child: InkWell(
+        onTap: () => onChanged(isFile ? ExplorerMode.folder : ExplorerMode.file),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHigh.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: colorScheme.outline.withOpacity(0.05),
+            ),
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(scale: animation, child: child),
+              );
+            },
+            child: Icon(
+              isFile ? Icons.description_rounded : Icons.folder_rounded,
+              key: ValueKey(mode),
+              size: 20,
+              color: colorScheme.primary,
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
+
 class _FolderGridTile extends StatelessWidget {
+
   final Node folder;
   final VoidCallback onTap;
 
@@ -299,7 +344,7 @@ class _FolderGridTile extends StatelessWidget {
   }
 }
 
-class _NoteGridTile extends StatelessWidget {
+class _NoteGridTile extends ConsumerWidget {
   final Node note;
   final int index;
   final List<Node> allNotesInView;
@@ -311,19 +356,17 @@ class _NoteGridTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     return InkWell(
       onTap: () {
+        ref.read(revisionProvider.notifier).startLinearWithNotes(allNotesInView, 'Explorer', initialIndex: index);
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ReaderScreen(
-              notes: allNotesInView,
-              initialIndex: index,
-            ),
+            builder: (context) => const RevisionFeedScreen(),
           ),
         );
       },
@@ -453,7 +496,7 @@ class _FolderTile extends StatelessWidget {
   }
 }
 
-class _FeedCard extends StatelessWidget {
+class _FeedCard extends ConsumerWidget {
   final Node note;
   final int index;
   final List<Node> allNotesInView;
@@ -465,7 +508,7 @@ class _FeedCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -473,13 +516,11 @@ class _FeedCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 16),
       child: InkWell(
         onTap: () {
+          ref.read(revisionProvider.notifier).startLinearWithNotes(allNotesInView, 'Explorer', initialIndex: index);
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ReaderScreen(
-                notes: allNotesInView,
-                initialIndex: index,
-              ),
+              builder: (context) => const RevisionFeedScreen(),
             ),
           );
         },
@@ -569,12 +610,12 @@ class _FeedCard extends StatelessWidget {
   }
 }
 
-class _RecentNoteCard extends StatelessWidget {
+class _RecentNoteCard extends ConsumerWidget {
   final Node note;
   const _RecentNoteCard({required this.note});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -582,10 +623,11 @@ class _RecentNoteCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: InkWell(
         onTap: () {
+          ref.read(revisionProvider.notifier).startLinearWithNotes([note], 'Recent');
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ReaderScreen(notes: [note], initialIndex: 0),
+              builder: (context) => const RevisionFeedScreen(),
             ),
           );
         },

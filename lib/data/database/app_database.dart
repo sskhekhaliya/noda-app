@@ -292,6 +292,47 @@ class AppDatabase extends _$AppDatabase {
     }).toList();
   }
 
+  /// Get all descendant notes under a given start node, ordered by createdAt.
+  /// If [startNodeId] is null, returns all notes in the database.
+  Future<List<Node>> getAllNotesRecursiveChronological(String? startNodeId) async {
+    if (startNodeId == null) {
+      return (select(nodes)
+            ..where((n) => n.type.equals('NOTE'))
+            ..orderBy([(n) => OrderingTerm.asc(n.createdAt)]))
+          .get();
+    }
+
+    final result = await customSelect(
+      '''
+      WITH RECURSIVE descendants AS (
+        SELECT * FROM nodes WHERE parent_id = ?
+        UNION ALL
+        SELECT n.* FROM nodes n
+        INNER JOIN descendants d ON n.parent_id = d.id
+      )
+      SELECT * FROM descendants WHERE type = 'NOTE'
+      ORDER BY created_at ASC
+      ''',
+      variables: [Variable.withString(startNodeId)],
+      readsFrom: {nodes},
+    ).get();
+
+    return result.map((row) {
+      return Node(
+        id: row.read<String>('id'),
+        parentId: row.readNullable<String>('parent_id'),
+        type: row.read<String>('type'),
+        title: row.read<String>('title'),
+        content: row.read<String>('content'),
+        icon: row.readNullable<String>('icon'),
+        colorValue: row.readNullable<int>('color_value'),
+        orderIndex: row.read<int>('order_index'),
+        createdAt: row.read<DateTime>('created_at'),
+        updatedAt: row.read<DateTime>('updated_at'),
+      );
+    }).toList();
+  }
+
   /// Get all descendants (Folders and Notes) under a given start node.
   Future<List<Node>> getRecursiveDescendants(String startNodeId) async {
     final result = await customSelect(

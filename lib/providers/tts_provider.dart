@@ -6,27 +6,43 @@ import 'dart:convert';
 /// State class for TTS playback and highlighting.
 class TtsState {
   final String? currentText;
+  final String? cleanedText;
   final int? start;
   final int? end;
+  final int? mappedStart; // Offset in raw text
+  final int? mappedEnd;   // Offset in raw text
+  final int lastProgress; // Last character offset spoken
   final bool isPlaying;
 
   TtsState({
     this.currentText,
+    this.cleanedText,
     this.start,
     this.end,
+    this.mappedStart,
+    this.mappedEnd,
+    this.lastProgress = 0,
     this.isPlaying = false,
   });
 
   TtsState copyWith({
     String? currentText,
+    String? cleanedText,
     int? start,
     int? end,
+    int? mappedStart,
+    int? mappedEnd,
+    int? lastProgress,
     bool? isPlaying,
   }) {
     return TtsState(
       currentText: currentText ?? this.currentText,
+      cleanedText: cleanedText ?? this.cleanedText,
       start: start ?? this.start,
       end: end ?? this.end,
+      mappedStart: mappedStart ?? this.mappedStart,
+      mappedEnd: mappedEnd ?? this.mappedEnd,
+      lastProgress: lastProgress ?? this.lastProgress,
       isPlaying: isPlaying ?? this.isPlaying,
     );
   }
@@ -67,22 +83,62 @@ class TtsNotifier extends StateNotifier<TtsState> {
     });
 
     _flutterTts.setProgressHandler((String text, int start, int end, String word) {
-      state = state.copyWith(start: start, end: end);
+      final actualStart = start + state.lastProgress;
+      final actualEnd = end + state.lastProgress;
+      
+      state = state.copyWith(
+        start: actualStart, 
+        end: actualEnd,
+        mappedStart: _mapOffset(state.currentText ?? "", actualStart),
+        mappedEnd: _mapOffset(state.currentText ?? "", actualEnd),
+      );
     });
   }
 
-  Future<void> speak(String text) async {
+  int _mapOffset(String raw, int cleanOffset) {
+    if (cleanOffset <= 0) return 0;
+    int cleanIdx = 0;
+    int rawIdx = 0;
+    
+    final markers = RegExp(r'^(\*\*|__|==|~~|\*|_|#+|`+|!?\[|\]\(.*?\)|>|^\s*([\*\-\+]|\d+\.)\s+)');
+    
+    while (rawIdx < raw.length && cleanIdx < cleanOffset) {
+      final remaining = raw.substring(rawIdx);
+      final match = markers.firstMatch(remaining);
+      
+      if (match != null) {
+        rawIdx += match.end;
+      } else {
+        rawIdx++;
+        cleanIdx++;
+      }
+    }
+    return rawIdx;
+  }
+
+  Future<void> speak(String text, {bool resume = false}) async {
     if (state.isPlaying) {
       await _flutterTts.stop();
     }
 
-    final cleanText = _cleanMarkdownForSpeech(text);
-    state = state.copyWith(currentText: text, isPlaying: true);
-    await _flutterTts.speak(cleanText);
+    final isSameText = state.currentText == text;
+    final startOffset = (resume && isSameText) ? state.start ?? 0 : 0;
+    
+    final fullCleanText = _cleanMarkdownForSpeech(text);
+    final textToSpeak = startOffset < fullCleanText.length ? fullCleanText.substring(startOffset) : fullCleanText;
+
+    state = state.copyWith(
+      currentText: text, 
+      cleanedText: fullCleanText,
+      isPlaying: true, 
+      lastProgress: startOffset,
+      start: startOffset,
+      end: startOffset,
+    );
+    await _flutterTts.speak(textToSpeak);
   }
 
   String _cleanMarkdownForSpeech(String raw) {
-    // 1. First extract plain text if it's Quill JSON
     String text = raw;
     if (raw.startsWith('[{"insert":')) {
       try {
@@ -91,18 +147,15 @@ class TtsNotifier extends StateNotifier<TtsState> {
       } catch (_) {}
     }
 
-    // 2. Remove HTML tags
-    text = text.replaceAll(RegExp(r'<[^>]*>'), '');
-
-    // 3. Remove Markdown markers but keep the content inside
+    // Explicitly remove markers in order of complexity
     text = text
-        .replaceAll(RegExp(r'#+\s+'), '') // Headers
-        .replaceAllMapped(RegExp(r'(\*\*|__|==|~~|\*|_)(.*?)\1'), (m) => m[2]!) // Bold/Italic/etc
-        .replaceAllMapped(RegExp(r'!?\[(.*?)\]\(.*?\)?'), (m) => m[1]!) // Links/Images
-        .replaceAllMapped(RegExp(r'`{1,3}(.*?)`{1,3}'), (m) => m[1]!) // Code
-        .replaceAll(RegExp(r'^\s*([\*\-\+>]|\d+\.)\s+', multiLine: true), '') // Lists/Quotes
+        .replaceAllMapped(RegExp(r'!?\[(.*?)\]\(.*?\)?'), (m) => m[1]!) // Links
+        .replaceAll(RegExp(r'\*\*|__|==|~~'), '') // 2-char markers
+        .replaceAll(RegExp(r'\*|_|#|`|>'), '') // 1-char markers
+        .replaceAll(RegExp(r'^\s*([\*\-\+]|\d+\.)\s+', multiLine: true), '') // Lists
         .replaceAll(RegExp(r'^\s*([=\-\*_]){3,}\s*$', multiLine: true), '') // HRs
-        .replaceAll(RegExp(r'[-=]>|<[-=]'), ' '); // Arrows
+        .replaceAll(RegExp(r'[-=]>|<[-=]'), ' ') // Arrows
+        .replaceAll(RegExp(r'<[^>]*>'), ''); // HTML tags
 
     return text.trim();
   }

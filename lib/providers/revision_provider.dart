@@ -87,6 +87,32 @@ class RevisionNotifier extends StateNotifier<RevisionState> {
     );
   }
 
+  /// Start chronological revision — all notes in order of creation.
+  Future<void> startChronological(String? nodeId, String title) async {
+    state = state.copyWith(isLoading: true, startNodeId: nodeId ?? '', startNodeTitle: title);
+
+    final notes = await _db.getAllNotesRecursiveChronological(nodeId);
+
+    state = state.copyWith(
+      notes: notes,
+      currentIndex: 0,
+      mode: RevisionMode.linear,
+      isLoading: false,
+    );
+  }
+
+  /// Start linear revision with a pre-provided list of notes and an optional starting index.
+  void startLinearWithNotes(List<Node> notes, String title, {int initialIndex = 0}) {
+    state = state.copyWith(
+      notes: notes,
+      currentIndex: initialIndex,
+      mode: RevisionMode.linear,
+      startNodeId: 'CUSTOM',
+      startNodeTitle: title,
+      isLoading: false,
+    );
+  }
+
   /// Move to next note.
   void next() {
     if (state.hasNext) {
@@ -116,6 +142,17 @@ class RevisionNotifier extends StateNotifier<RevisionState> {
       currentIndex: 0,
       mode: RevisionMode.shuffle,
     );
+  }
+
+  /// Update the content of a specific note in the queue.
+  void updateNoteContent(String nodeId, String newContent) {
+    final updatedNotes = state.notes.map((n) {
+      if (n.id == nodeId) {
+        return n.copyWith(content: newContent);
+      }
+      return n;
+    }).toList();
+    state = state.copyWith(notes: updatedNotes);
   }
 
   /// Clear the revision queue.

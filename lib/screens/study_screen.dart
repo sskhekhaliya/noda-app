@@ -19,6 +19,7 @@ class StudyScreen extends ConsumerStatefulWidget {
 class _StudyScreenState extends ConsumerState<StudyScreen> {
   String? _exitTrigger; // 'left', 'right', or null
   bool _hasSpokenInitial = false;
+  bool _isPopping = false;
 
   @override
   void initState() {
@@ -30,12 +31,26 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
       if (settings.autoplayTts && state.currentCard != null && !_hasSpokenInitial) {
         _hasSpokenInitial = true;
         Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted && ref.read(settingsProvider).autoplayTts) {
+          if (mounted && !_isPopping && ref.read(settingsProvider).autoplayTts) {
             ref.read(ttsProvider.notifier).speak(state.currentCard!.front);
           }
         });
       }
     });
+  }
+
+  @override
+  void deactivate() {
+    _isPopping = true;
+    ref.read(ttsProvider.notifier).stop();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _isPopping = true;
+    ref.read(ttsProvider.notifier).stop();
+    super.dispose();
   }
 
   @override
@@ -48,6 +63,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
 
     // Autoplay TTS - New Card (Front)
     ref.listen(studyProvider, (previous, next) {
+      if (_isPopping) return;
       if (next.currentCard != null && next.currentCard?.id != (previous?.currentCard?.id)) {
         ref.read(ttsProvider.notifier).stop();
         if (settings.autoplayTts) {
@@ -58,6 +74,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
 
     // Autoplay TTS - Flip (Back)
     ref.listen(studyProvider.select((s) => s.isFlipped), (previous, next) {
+      if (_isPopping) return;
       if (next == true && state.currentCard != null) {
         ref.read(ttsProvider.notifier).stop();
         if (settings.autoplayTts) {
@@ -72,8 +89,16 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      onPopInvokedWithResult: (didPop, result) {
+        _isPopping = true;
+        ref.read(ttsProvider.notifier).stop();
+      },
+      child: Scaffold(
+
+        appBar: AppBar(
+
+
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
           onPressed: () {
@@ -226,8 +251,10 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
             ],
           ],
         ),
+
       ),
-    );
+    ),
+  );
   }
 }
 
