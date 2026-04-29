@@ -11,7 +11,10 @@ import '../core/theme/app_typography.dart';
 import '../data/database/app_database.dart';
 import '../providers/database_provider.dart';
 import '../providers/tts_provider.dart';
+import '../providers/navigation_provider.dart';
+import '../providers/nodes_provider.dart';
 import 'keep_note_screen.dart';
+
 
 class ReaderScreen extends ConsumerStatefulWidget {
   final List<Node> notes;
@@ -157,7 +160,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   setState(() {
                     _notes[_currentIndex] = _notes[_currentIndex].copyWith(content: result);
                   });
+                  // Invalidate providers to force a refresh of the library and recents
+                  ref.invalidate(notesChildrenProvider);
+                  ref.invalidate(recentNotesProvider);
+                  ref.invalidate(allNotesProvider);
                 }
+
               },
             ),
             const SizedBox(width: 16),

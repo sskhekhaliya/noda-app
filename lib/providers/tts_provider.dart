@@ -149,13 +149,16 @@ class TtsNotifier extends StateNotifier<TtsState> {
 
     // Explicitly remove markers in order of complexity
     text = text
+
+        .replaceAll(RegExp(r'<(?:.|\n)*?>'), '') // Remove all HTML tags including multi-line
         .replaceAllMapped(RegExp(r'!?\[(.*?)\]\(.*?\)?'), (m) => m[1]!) // Links
         .replaceAll(RegExp(r'\*\*|__|==|~~'), '') // 2-char markers
         .replaceAll(RegExp(r'\*|_|#|`|>'), '') // 1-char markers
         .replaceAll(RegExp(r'^\s*([\*\-\+]|\d+\.)\s+', multiLine: true), '') // Lists
         .replaceAll(RegExp(r'^\s*([=\-\*_]){3,}\s*$', multiLine: true), '') // HRs
         .replaceAll(RegExp(r'[-=]>|<[-=]'), ' ') // Arrows
-        .replaceAll(RegExp(r'<[^>]*>'), ''); // HTML tags
+        .replaceAll(RegExp(r'&[a-z]+;|&#[0-9]+;'), ''); // HTML entities
+
 
     return text.trim();
   }

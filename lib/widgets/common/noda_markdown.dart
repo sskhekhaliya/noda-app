@@ -130,22 +130,20 @@ class NodaMarkdown extends ConsumerWidget {
         );
       },
       extensionSet: md.ExtensionSet(
-        md.ExtensionSet.gitHubFlavored.blockSyntaxes,
         [
-          ...md.ExtensionSet.gitHubFlavored.inlineSyntaxes,
+          ...md.ExtensionSet.gitHubFlavored.blockSyntaxes,
+          const md.TableSyntax(),
+        ],
+        [
           StyleTagSyntax(),
+          ...md.ExtensionSet.gitHubFlavored.inlineSyntaxes,
           StaticHighlightSyntax(),
           WikiLinkSyntax(),
         ],
+
       ),
-      blockSyntaxes: const [
-        md.TableSyntax(),
-        md.HtmlBlockSyntax(),
-      ],
-      inlineSyntaxes: [
-        md.InlineHtmlSyntax(),
-      ],
       builders: {
+
         'wikilink': WikiLinkBuilder(
           onTap: (title) async {
             final db = ref.read(databaseProvider);
@@ -363,18 +361,26 @@ class WikiLinkBuilder extends MarkdownElementBuilder {
 }
 
 class StyleTagSyntax extends md.InlineSyntax {
-  StyleTagSyntax() : super(r'''<span\s+style=["']([^"']*)["']\s*>(.*?)</span>''');
+  StyleTagSyntax() : super(r'<span\b([^>]*?)>([\s\S]*?)</span>', caseSensitive: false);
 
   @override
   bool onMatch(md.InlineParser parser, Match match) {
-    final styleStr = match[1] ?? '';
+    final attributesStr = match[1] ?? '';
     final content = match[2] ?? '';
+    
+    // Extract style attribute specifically
+    final styleMatch = RegExp(r'''style=["']([^"']*)["']''', caseSensitive: false).firstMatch(attributesStr);
+    final styleStr = styleMatch?.group(1) ?? '';
+
+
+
     final element = md.Element('span', md.InlineParser(content, parser.document).parse());
     element.attributes['style'] = styleStr;
     parser.addNode(element);
     return true;
   }
 }
+
 
 class StyleBuilder extends MarkdownElementBuilder {
   @override
@@ -548,10 +554,9 @@ class CodeElementBuilder extends MarkdownElementBuilder {
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     final String content = element.textContent;
-    final bool isBlock = content.contains('\n') || element.attributes.containsKey('class');
+    final bool isBlock = content.contains('\n') || (element.attributes['class']?.startsWith('language-') ?? false);
     
     if (!isBlock) {
-      // Inline code
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
@@ -569,13 +574,27 @@ class CodeElementBuilder extends MarkdownElementBuilder {
       );
     }
 
-    // Extract language
     String language = 'plaintext';
-    if (element.attributes.containsKey('class')) {
-      final String? className = element.attributes['class'];
-      if (className != null && className.startsWith('language-')) {
-        language = className.replaceFirst('language-', '');
-      }
+    final String? className = element.attributes['class'];
+    if (className != null && className.startsWith('language-')) {
+      language = className.replaceFirst('language-', '').trim().toLowerCase();
+    }
+    
+    // Workaround: Use xml highlighter for html to avoid specific null-check crashes
+    if (language == 'html') language = 'xml';
+    
+    if (language.isEmpty) language = 'plaintext';
+
+
+    final Map<String, TextStyle> activeTheme = colorScheme.brightness == Brightness.dark 
+        ? draculaTheme 
+        : Map<String, TextStyle>.from(githubTheme);
+
+    if (colorScheme.brightness == Brightness.light) {
+      final rootStyle = activeTheme['root'] ?? const TextStyle();
+      activeTheme['root'] = rootStyle.copyWith(
+        backgroundColor: const Color(0xFFF1F5F9),
+      );
     }
 
     return Container(
@@ -584,24 +603,13 @@ class CodeElementBuilder extends MarkdownElementBuilder {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colorScheme.outline.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: HighlightView(
           content.trim(),
           languageId: language,
-          theme: colorScheme.brightness == Brightness.dark 
-              ? draculaTheme 
-              : Map.from(githubTheme)..['root'] = githubTheme['root']!.copyWith(
-                  backgroundColor: const Color(0xFFF1F5F9), // Light modern grey
-                ),
+          theme: activeTheme,
           padding: const EdgeInsets.all(20),
           textStyle: GoogleFonts.firaCode(
             fontSize: 14,
@@ -612,3 +620,4 @@ class CodeElementBuilder extends MarkdownElementBuilder {
     );
   }
 }
+

@@ -11,7 +11,10 @@ import '../widgets/revision/note_card.dart';
 import '../widgets/revision/long_press_menu.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
+import '../providers/navigation_provider.dart';
+import '../providers/nodes_provider.dart';
 import 'keep_note_screen.dart';
+
 
 /// Full-screen revision feed — scrolls horizontally through notes.
 class RevisionFeedScreen extends ConsumerStatefulWidget {
@@ -38,10 +41,14 @@ class RevisionFeedScreen extends ConsumerStatefulWidget {
         _hasSpokenInitial = true;
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted && !_isPopping && ref.read(settingsProvider).autoplayTts) {
-            final firstNote = ref.read(revisionProvider).notes[0];
-            ref.read(ttsProvider.notifier).speak(firstNote.content);
+            final revision = ref.read(revisionProvider);
+            if (revision.currentIndex < revision.notes.length) {
+              final currentNote = revision.notes[revision.currentIndex];
+              ref.read(ttsProvider.notifier).speak(currentNote.content);
+            }
           }
         });
+
       }
     });
   }
@@ -303,7 +310,12 @@ class _TopOverlay extends ConsumerWidget {
                       
                       if (result != null) {
                         ref.read(revisionProvider.notifier).updateNoteContent(currentNote.id, result);
+                        // Invalidate providers to force a refresh of the library and recents
+                        ref.invalidate(notesChildrenProvider);
+                        ref.invalidate(recentNotesProvider);
+                        ref.invalidate(allNotesProvider);
                       }
+
                     },
                   ),
                 ],
