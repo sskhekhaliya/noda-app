@@ -641,12 +641,14 @@ class ImportExportService {
 
       // 1. Handle Notes (Treated as child nodes)
       if (data.containsKey('notes')) {
-        // OVERWRITE or UPDATE: If key is present, we clear existing notes in this folder first
-        // to sync with the incoming list (even if it's empty).
-        final children = await db.getChildrenOf(parentId);
-        final existingNotes = children.where((n) => n.type == 'NOTE').toList();
-        for (var en in existingNotes) {
-          await db.deleteNodeRecursive(en.id);
+        // Only clear existing notes if we are in OVERWRITE mode.
+        // In MERGE (update) mode, we keep them and just append the new ones.
+        if (strategy == ImportStrategy.overwrite) {
+          final children = await db.getChildrenOf(parentId);
+          final existingNotes = children.where((n) => n.type == 'NOTE').toList();
+          for (var en in existingNotes) {
+            await db.deleteNodeRecursive(en.id);
+          }
         }
         
         _extractNotes(data, parentId, incomingNodes, uuid, now);
@@ -664,15 +666,6 @@ class ImportExportService {
             await db.deleteNodeRecursive(ef.id);
           }
         } 
-        // In UPDATE mode, we MERGE folders (don't clear).
-        // Except if nodes: [] is explicitly provided, user wants them gone.
-        else if (strategy == ImportStrategy.appendUpdate && nodesJson is List && nodesJson.isEmpty) {
-          final children = await db.getChildrenOf(parentId);
-          final existingFolders = children.where((n) => n.type == 'FOLDER').toList();
-          for (var ef in existingFolders) {
-            await db.deleteNodeRecursive(ef.id);
-          }
-        }
         
         _processNodes(nodesJson, parentId, incomingNodes, incomingCards, uuid, now);
       }
@@ -683,14 +676,6 @@ class ImportExportService {
         
         // If OVERWRITE mode and key is present, clear existing cards
         if (strategy == ImportStrategy.overwrite) {
-          final cards = await db.getCardsOf(parentId);
-          for (var c in cards) {
-            await db.deleteCard(c.id);
-          }
-        }
-        // In UPDATE mode, we MERGE cards.
-        // Except if cards: [] is explicitly provided.
-        else if (strategy == ImportStrategy.appendUpdate && cardsJson is List && cardsJson.isEmpty) {
           final cards = await db.getCardsOf(parentId);
           for (var c in cards) {
             await db.deleteCard(c.id);

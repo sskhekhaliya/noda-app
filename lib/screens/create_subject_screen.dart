@@ -337,10 +337,11 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(24),
                       image: const DecorationImage(
-                        image: NetworkImage('https://images.unsplash.com/photo-1507842217343-583bb7270b66?q=80&w=1000&auto=format&fit=crop'),
+                        image: AssetImage('assets/library_bg.png'),
                         fit: BoxFit.cover,
                         opacity: 0.25,
                       ),
+
                     ),
                   ),
                   Container(

@@ -61,29 +61,41 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
     final settings = ref.watch(settingsProvider);
     final tts = ref.watch(ttsProvider);
 
-    // Autoplay TTS - New Card (Front)
+    // Unified Study Session TTS Listener
     ref.listen(studyProvider, (previous, next) {
       if (_isPopping) return;
-      if (next.currentCard != null && next.currentCard?.id != (previous?.currentCard?.id)) {
+      
+      final cardChanged = next.currentCard?.id != previous?.currentCard?.id;
+      final flipChanged = next.isFlipped != previous?.isFlipped;
+
+      if (cardChanged) {
+        // NEW CARD (Swipe)
         ref.read(ttsProvider.notifier).stop();
-        if (settings.autoplayTts) {
-          ref.read(ttsProvider.notifier).speak(next.currentCard!.front);
+        if (settings.autoplayTts && next.currentCard != null) {
+          // Delay slightly to allow the "flip reset" and swipe animations to settle
+          Future.delayed(const Duration(milliseconds: 300), () {
+             if (mounted && !_isPopping && ref.read(studyProvider).currentCard?.id == next.currentCard?.id) {
+               ref.read(ttsProvider.notifier).speak(next.currentCard!.front);
+             }
+          });
+        }
+      } else if (flipChanged) {
+        // FLIP (Same Card)
+        // Only trigger speech if we are actually flipping (not just resetting state during swipe)
+        if (!cardChanged) {
+          ref.read(ttsProvider.notifier).stop();
+          if (settings.autoplayTts && next.currentCard != null) {
+            if (next.isFlipped) {
+              ref.read(ttsProvider.notifier).speak(next.currentCard!.back);
+            } else {
+              // Manually flipped back to front
+              ref.read(ttsProvider.notifier).speak(next.currentCard!.front);
+            }
+          }
         }
       }
     });
 
-    // Autoplay TTS - Flip (Back)
-    ref.listen(studyProvider.select((s) => s.isFlipped), (previous, next) {
-      if (_isPopping) return;
-      if (next == true && state.currentCard != null) {
-        ref.read(ttsProvider.notifier).stop();
-        if (settings.autoplayTts) {
-          ref.read(ttsProvider.notifier).speak(state.currentCard!.back);
-        }
-      } else if (next == false) {
-        ref.read(ttsProvider.notifier).stop();
-      }
-    });
 
     if (state.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));

@@ -444,35 +444,22 @@ class _HierarchyScreenState extends ConsumerState<HierarchyScreen> {
 
     if (jsonStr == null || jsonStr.trim().isEmpty) return;
 
+    Map<String, dynamic> data;
+    try {
+      data = jsonDecode(jsonStr);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Invalid JSON format: $e')));
+      return;
+    }
+
     if (!mounted) return;
 
     final strategy = await showDialog<ImportStrategy>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Import Strategy'),
-        content: const Text(
-          'How would you like to apply this data?\n\n'
-          '• UPDATE: Merges new items, replaces notes if key exists.\n'
-          '• OVERWRITE: Wipes folder content before importing.'
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, ImportStrategy.appendUpdate),
-            child: const Text('UPDATE'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, ImportStrategy.overwrite),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            child: const Text('OVERWRITE'),
-          ),
-        ],
+      builder: (context) => _FolderImportStrategyDialog(
+        cards: data.containsKey('cards') ? (data['cards'] as List).length : null,
+        nodes: data.containsKey('nodes') ? (data['nodes'] as List).length : null,
+        notes: data.containsKey('notes') ? (data['notes'] as List).length : (data.containsKey('note') ? 1 : null),
       ),
     );
 
@@ -1233,6 +1220,174 @@ class _ModuleNotePreview extends StatelessWidget {
                     color: colorScheme.primary,
                   ),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FolderImportStrategyDialog extends StatelessWidget {
+  final int? cards;
+  final int? nodes;
+  final int? notes;
+
+  const _FolderImportStrategyDialog({
+    this.cards,
+    this.nodes,
+    this.notes,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      backgroundColor: colorScheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(Icons.file_download_outlined, color: colorScheme.primary, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  'Import Strategy',
+                  style: AppTypography.headingSmall().copyWith(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            
+            // Stat badges
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (cards != null) _StatBadge(label: '$cards Cards', icon: Icons.style_rounded, color: colorScheme.primary, isDark: isDark),
+                if (nodes != null) _StatBadge(label: '$nodes Folders', icon: Icons.folder_rounded, color: colorScheme.secondary, isDark: isDark),
+                if (notes != null) _StatBadge(label: '$notes Notes', icon: Icons.description_rounded, color: colorScheme.tertiary, isDark: isDark),
+              ],
+            ),
+            const SizedBox(height: 32),
+
+            _StrategyOption(
+              icon: Icons.call_merge_rounded,
+              title: 'Merge',
+              subtitle: 'Combines file data with your existing content. Safe and non-destructive.',
+              onTap: () => Navigator.pop(context, ImportStrategy.appendUpdate),
+            ),
+            const SizedBox(height: 12),
+            _StrategyOption(
+              icon: Icons.delete_sweep_rounded,
+              title: 'Overwrite',
+              subtitle: 'Replaces your local categories with exactly what is in the file.',
+              isWarning: true,
+              onTap: () => Navigator.pop(context, ImportStrategy.overwrite),
+            ),
+            
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('CANCEL', style: TextStyle(color: colorScheme.onSurfaceVariant, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatBadge extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool isDark;
+
+  const _StatBadge({required this.label, required this.icon, required this.color, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(isDark ? 0.2 : 0.1),
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(label, style: AppTypography.bodySmall(color: color).copyWith(fontWeight: FontWeight.bold, fontSize: 11)),
+        ],
+      ),
+    );
+  }
+}
+
+class _StrategyOption extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool isWarning;
+  final VoidCallback onTap;
+
+  const _StrategyOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.isWarning = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final baseColor = isWarning ? colorScheme.error : colorScheme.onSurface;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: baseColor, size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: AppTypography.subtitle(color: baseColor).copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: AppTypography.bodySmall(color: colorScheme.onSurfaceVariant)),
+                ],
               ),
             ),
           ],
